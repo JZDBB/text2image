@@ -222,7 +222,7 @@ class condGANTrainer(object):
             im.save(fullpath)
 
     def train(self):
-        self.writer = SummaryWriter('logs/train')
+        self.writer = SummaryWriter('../output/logs/train')
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
         optimizerG, optimizerE, optimizersD = self.define_optimizers(netG, text_encoder, netsD)
@@ -273,6 +273,7 @@ class condGANTrainer(object):
                 ######################################################
                 errD_total = 0
                 D_logs = ''
+                errD_ = []
                 for i in range(len(netsD)):
                     netsD[i].zero_grad()
                     errD = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],
@@ -281,6 +282,7 @@ class condGANTrainer(object):
                     errD.backward()
                     optimizersD[i].step()
                     errD_total += errD
+                    errD_.append(errD)
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
 
                 #######################################################
@@ -311,6 +313,14 @@ class condGANTrainer(object):
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
+                if gen_iterations % 10 == 0:
+                    self.writer.add_scalar("watch/errD0", errD_[0], gen_iterations)
+                    self.writer.add_scalar("watch/errD1", errD_[1], gen_iterations)
+                    self.writer.add_scalar("watch/errD2", errD_[2], gen_iterations)
+                    self.writer.add_scalar("watch/errD_total", errD_total, gen_iterations)
+                    self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
+                    # self.writer.add_scalar("watch/learning_rate", lr, iteration)
+
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)
                 # save images
@@ -326,13 +336,12 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
+
+
             end_t = time.time()
 
-            print('''[%d/%d][%d]
-                  Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
-                  % (epoch, self.max_epoch, self.num_batches,
-                     errD_total.item(), errG_total.item(),
-                     end_t - start_t))
+            print('''[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
+                  % (epoch, self.max_epoch, self.num_batches, errD_total.item(), errG_total.item(), end_t - start_t))
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, text_encoder, avg_param_G, netsD, epoch)

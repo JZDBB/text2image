@@ -177,12 +177,13 @@ def generator_loss(netsD, image_encoder, fake_imgs, real_labels,
         features = netsD[i](fake_imgs[i])
         cond_logits = netsD[i].COND_DNET(features, sent_emb)
         cond_errG = nn.BCELoss()(cond_logits, real_labels)
-        if netsD[i].UNCOND_DNET is  not None:
+        if netsD[i].UNCOND_DNET is not None:
             logits = netsD[i].UNCOND_DNET(features)
             errG = nn.BCELoss()(logits, real_labels)
             g_loss = errG + cond_errG
         else:
             g_loss = cond_errG
+
         errG_total += g_loss
         # err_img = errG_total.data[0]
         logs += 'g_loss%d: %.2f ' % (i, g_loss.item())
@@ -195,18 +196,17 @@ def generator_loss(netsD, image_encoder, fake_imgs, real_labels,
             w_loss0, w_loss1, _ = words_loss(region_features, words_embs,
                                              match_labels, cap_lens,
                                              class_ids, batch_size)
-            w_loss = (w_loss0 + w_loss1) * \
-                cfg.TRAIN.SMOOTH.LAMBDA
+            w_loss = (w_loss0 + w_loss1) * cfg.TRAIN.SMOOTH.LAMBDA
             # err_words = err_words + w_loss.data[0]
 
             s_loss0, s_loss1 = sent_loss(cnn_code, sent_emb,
                                          match_labels, class_ids, batch_size)
-            s_loss = (s_loss0 + s_loss1) * \
-                cfg.TRAIN.SMOOTH.LAMBDA
+            s_loss = (s_loss0 + s_loss1) * cfg.TRAIN.SMOOTH.LAMBDA
             # err_sent = err_sent + s_loss.data[0]
 
             errG_total += w_loss + s_loss
             logs += 'w_loss: %.2f s_loss: %.2f ' % (w_loss.item(), s_loss.item())
+
     return errG_total, logs
 
 
@@ -266,17 +266,17 @@ def get_entrropy_loss(x):
     res = 0
     img = img[0][:,:,0]
     for i in range(len(img)):
-    	for j in range(len(img[i])):
-    	    val = img[i][j]
-    	    tmp[val] = float(tmp[val] + 1)
-    	    k =  float(k + 1)
+        for j in range(len(img[i])):
+            val = img[i][j]
+            tmp[val] = float(tmp[val] + 1)
+            k =  float(k + 1)
     for i in range(len(tmp)):
         tmp[i] = float(tmp[i] / k)
     for i in range(len(tmp)):
-    	if(tmp[i] == 0):
-    	    res = res
-    	else:
-    	    res = float(res - tmp[i] * (math.log(tmp[i]) / math.log(2.0)))
+        if(tmp[i] == 0):
+            res = res
+        else:
+            res = float(res - tmp[i] * (math.log(tmp[i]) / math.log(2.0)))
     return res
 def entrropy_loss(x):
     loss = 0
