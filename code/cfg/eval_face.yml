@@ -1,0 +1,30 @@
+CONFIG_NAME: 'attn2'
+
+DATASET_NAME: 'faces'
+DATA_DIR: '../data/faces'
+GPU_ID: 3
+WORKERS: 1
+
+B_VALIDATION: True  # True  # False
+TREE:
+    BRANCH_NUM: 3
+
+
+TRAIN:
+    FLAG: False
+    NET_G: '../output/birds_FTSTYLE1000/Model/netG_epoch_1000.pth'
+    B_NET_D: False
+    BATCH_SIZE: 10 #100
+    NET_E: '../output/birds_FTSTYLE1000/Model/netE1000.pth'
+
+
+GAN:
+    DF_DIM: 64
+    GF_DIM: 32
+    Z_DIM: 100
+    R_NUM: 2
+
+TEXT:
+    EMBEDDING_DIM: 256
+    CAPTIONS_PER_IMAGE: 5
+    WORDS_NUM: 25

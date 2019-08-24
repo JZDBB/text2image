@@ -1,0 +1,30 @@
+CONFIG_NAME: 'attn2'
+
+DATASET_NAME: 'flowers'
+DATA_DIR: '../data/flowers'
+GPU_ID: 3
+WORKERS: 1
+
+B_VALIDATION: True  # True  # False
+TREE:
+    BRANCH_NUM: 3
+
+
+TRAIN:
+    FLAG: False
+    NET_G: '../output/flowers_attn2_2019_02_18_22_41_12/Model/netG_epoch_500.pth'
+    B_NET_D: False
+    BATCH_SIZE: 8 #100,16,12
+    NET_E: '../DAMSMencoders/flowers/text_encoder.pth'
+
+
+GAN:
+    DF_DIM: 64
+    GF_DIM: 32
+    Z_DIM: 100
+    R_NUM: 2
+
+TEXT:
+    EMBEDDING_DIM: 256
+    CAPTIONS_PER_IMAGE: 10
+    WORDS_NUM: 25
