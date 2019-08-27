@@ -250,7 +250,7 @@ class condGANTrainer(object):
 
 
     def train(self):
-        self.writer = SummaryWriter(os.path.join(self.log_dir, "new"))
+        self.writer = SummaryWriter(self.log_dir)
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
         self.optimizerG, self.optimizersD = self.define_optimizers(netG, netsD)
