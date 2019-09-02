@@ -31,8 +31,10 @@ class condGANTrainer(object):
         if cfg.TRAIN.FLAG:
             self.model_dir = os.path.join(output_dir, 'Model')
             self.image_dir = os.path.join(output_dir, 'Image')
+            self.log_dir = os.path.join(output_dir, "logs")
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
+            mkdir_p(self.log_dir)
 
         torch.cuda.set_device(cfg.GPU_ID)
         cudnn.benchmark = True
@@ -121,6 +123,11 @@ class condGANTrainer(object):
                     state_dict = \
                         torch.load(Dname, map_location=lambda storage, loc: storage)
                     netsD[i].load_state_dict(state_dict)
+            encoder_path = cfg.TRAIN.NET_G.replace("netG_epoch_", "netE")
+            state_dict = torch.load(encoder_path, map_location=lambda storage, loc: storage)
+            text_encoder.load_state_dict(state_dict)
+            print('Load D from: ', encoder_path)
+
         # ########################################################### #
         if cfg.CUDA:
             text_encoder = text_encoder.cuda()
@@ -202,6 +209,7 @@ class condGANTrainer(object):
                 fullpath = '%s/G_%s_%d_%d.png'\
                     % (self.image_dir, name, gen_iterations, i)
                 im.save(fullpath)
+        # self.writer.add_images("low res image maps", img_set.datach())
 
         # for i in range(len(netsD)):
         i = -1
@@ -221,8 +229,11 @@ class condGANTrainer(object):
                 % (self.image_dir, name, gen_iterations)
             im.save(fullpath)
 
+        # self.writer.add_images("high res image maps", im)
+
+
     def train(self):
-        self.writer = SummaryWriter('../output/logs/train')
+        self.writer = SummaryWriter(os.path.join(self.log_dir, "new"))
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
         optimizerG, optimizerE, optimizersD = self.define_optimizers(netG, text_encoder, netsD)
@@ -271,6 +282,7 @@ class condGANTrainer(object):
                 #######################################################
                 # (3) Update D network
                 ######################################################
+
                 errD_total = 0
                 D_logs = ''
                 errD_ = []
@@ -294,21 +306,22 @@ class condGANTrainer(object):
 
                 # do not need to compute gradient for Ds
                 # self.set_requires_grad_value(netsD, False)
-                netG.zero_grad()
-                text_encoder.zero_grad()
-                errG_total, G_logs = \
-                    generator_loss(netsD, image_encoder, fake_imgs, real_labels,
-                                   words_embs, sent_emb, match_labels, cap_lens, class_ids)
-                kl_loss = KL_loss(mu, logvar)
-                #tv_loss = TV_loss(fake_imgs)
-                errG_total += kl_loss
-                #errG_total += tv_loss#add tv loss
-                G_logs += 'kl_loss: %.2f ' % kl_loss.item()
-                #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
-                # backward and update parameters
-                errG_total.backward()
-                optimizerG.step()
-                optimizerE.step()
+                if gen_iterations % 3 == 0:
+                    netG.zero_grad()
+                    text_encoder.zero_grad()
+                    errG_total, G_logs, errG_list = \
+                        generator_loss(netsD, image_encoder, fake_imgs, real_labels,
+                                       words_embs, sent_emb, match_labels, cap_lens, class_ids)
+                    kl_loss = KL_loss(mu, logvar)
+                    #tv_loss = TV_loss(fake_imgs)
+                    errG_total += kl_loss
+                    #errG_total += tv_loss#add tv loss
+                    G_logs += 'kl_loss: %.2f ' % kl_loss.item()
+                    #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
+                    # backward and update parameters
+                    errG_total.backward()
+                    optimizerG.step()
+                    optimizerE.step()
 				
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
@@ -318,6 +331,11 @@ class condGANTrainer(object):
                     self.writer.add_scalar("watch/errD1", errD_[1], gen_iterations)
                     self.writer.add_scalar("watch/errD2", errD_[2], gen_iterations)
                     self.writer.add_scalar("watch/errD_total", errD_total, gen_iterations)
+                    self.writer.add_scalar("watch/errg0", errG_list[0], gen_iterations)
+                    self.writer.add_scalar("watch/errg1", errG_list[1], gen_iterations)
+                    self.writer.add_scalar("watch/errg2", errG_list[2], gen_iterations)
+                    self.writer.add_scalar("watch/word_loss", errG_list[3], gen_iterations)
+                    self.writer.add_scalar("watch/sent_loss", errG_list[4], gen_iterations)
                     self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/learning_rate", lr, iteration)
 
