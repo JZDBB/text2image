@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
                         default='cfg/bird_attn2.yml', type=str)
+    parser.add_argument('--model', dest="model", default=None, type=str)
     parser.add_argument('--gpu', dest='gpu_id', type=int, default=-1)
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--manualSeed', type=int, help='manual seed')
@@ -133,7 +134,7 @@ if __name__ == "__main__":
         drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
 
     # Define models and go to train/evaluate
-    algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword)
+    algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, args)
 
     start_t = time.time()
     if cfg.TRAIN.FLAG:
