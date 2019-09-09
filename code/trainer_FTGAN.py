@@ -157,6 +157,11 @@ class condGANTrainer(object):
 
         return optimizerG, optimizerE, optimizersD
 
+    def adjust_learning_rate(self, optimizer, decay_rate=.9):
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] * decay_rate
+
+
     def prepare_labels(self):
         batch_size = self.batch_size
         real_labels = Variable(torch.FloatTensor(batch_size).fill_(1))
@@ -307,22 +312,22 @@ class condGANTrainer(object):
 
                 # do not need to compute gradient for Ds
                 # self.set_requires_grad_value(netsD, False)
-                if gen_iterations % 3 == 0:
-                    netG.zero_grad()
-                    text_encoder.zero_grad()
-                    errG_total, G_logs, errG_list = \
-                        generator_loss(netsD, image_encoder, fake_imgs, real_labels,
-                                       words_embs, sent_emb, match_labels, cap_lens, class_ids)
-                    kl_loss = KL_loss(mu, logvar)
-                    #tv_loss = TV_loss(fake_imgs)
-                    errG_total += kl_loss
-                    #errG_total += tv_loss#add tv loss
-                    G_logs += 'kl_loss: %.2f ' % kl_loss.item()
-                    #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
-                    # backward and update parameters
-                    errG_total.backward()
-                    optimizerG.step()
-                    optimizerE.step()
+                # if gen_iterations % 3 == 0:
+                netG.zero_grad()
+                text_encoder.zero_grad()
+                errG_total, G_logs, errG_list = \
+                    generator_loss(netsD, image_encoder, fake_imgs, real_labels,
+                                   words_embs, sent_emb, match_labels, cap_lens, class_ids)
+                kl_loss = KL_loss(mu, logvar)
+                #tv_loss = TV_loss(fake_imgs)
+                errG_total += kl_loss
+                #errG_total += tv_loss#add tv loss
+                G_logs += 'kl_loss: %.2f ' % kl_loss.item()
+                #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
+                # backward and update parameters
+                errG_total.backward()
+                optimizerG.step()
+                optimizerE.step()
 				
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
@@ -338,7 +343,7 @@ class condGANTrainer(object):
                     self.writer.add_scalar("watch/word_loss", errG_list[3], gen_iterations)
                     self.writer.add_scalar("watch/sent_loss", errG_list[4], gen_iterations)
                     self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
-                    # self.writer.add_scalar("watch/learning_rate", lr, iteration)
+                    self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
 
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)
@@ -355,7 +360,17 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
-
+                if optimizerG['lr'] > 2e-7:
+                    if epoch < 100:
+                        self.adjust_learning_rate(optimizerE, 1.1)
+                        self.adjust_learning_rate(optimizerG, 1.1)
+                        for opt in optimizersD:
+                            self.adjust_learning_rate(opt, 1.1)
+                    else:
+                        self.adjust_learning_rate(optimizerE, 0.99)
+                        self.adjust_learning_rate(optimizerG, 0.99)
+                    for opt in optimizersD:
+                        self.adjust_learning_rate(opt, 0.99)
 
             end_t = time.time()
 
