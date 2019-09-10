@@ -343,7 +343,7 @@ class condGANTrainer(object):
                     self.writer.add_scalar("watch/word_loss", errG_list[3], gen_iterations)
                     self.writer.add_scalar("watch/sent_loss", errG_list[4], gen_iterations)
                     self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
-                    self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
+                    # self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
 
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)
@@ -360,17 +360,17 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
-                if optimizerG['lr'] > 2e-7:
-                    if epoch < 100:
-                        self.adjust_learning_rate(optimizerE, 1.1)
-                        self.adjust_learning_rate(optimizerG, 1.1)
-                        for opt in optimizersD:
-                            self.adjust_learning_rate(opt, 1.1)
-                    else:
-                        self.adjust_learning_rate(optimizerE, 0.99)
-                        self.adjust_learning_rate(optimizerG, 0.99)
-                    for opt in optimizersD:
-                        self.adjust_learning_rate(opt, 0.99)
+                # if optimizerG['lr'] > 2e-7:
+                #     if epoch < 100:
+                #         self.adjust_learning_rate(optimizerE, 1.1)
+                #         self.adjust_learning_rate(optimizerG, 1.1)
+                #         for opt in optimizersD:
+                #             self.adjust_learning_rate(opt, 1.1)
+                #     else:
+                #         self.adjust_learning_rate(optimizerE, 0.99)
+                #         self.adjust_learning_rate(optimizerG, 0.99)
+                #     for opt in optimizersD:
+                #         self.adjust_learning_rate(opt, 0.99)
 
             end_t = time.time()
 
