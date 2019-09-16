@@ -343,6 +343,8 @@ class condGANTrainer(object):
                     self.writer.add_scalar("watch/word_loss", errG_list[3], gen_iterations)
                     self.writer.add_scalar("watch/sent_loss", errG_list[4], gen_iterations)
                     self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
+                    # self.writer.add_scalar("watch/p_real", errG_total, gen_iterations)
+                    # self.writer.add_scalar("watch/p_fake", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
 
                 if gen_iterations % 100 == 0:
@@ -375,7 +377,7 @@ class condGANTrainer(object):
             end_t = time.time()
 
             print('''[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
-                  % (epoch, self.max_epoch, self.num_batches, errD_total.item(), errG_total.item(), end_t - start_t))
+                  % (epoch,  self.max_epoch, self.num_batches, errD_total.item(), errG_total.item(), end_t - start_t))
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, text_encoder, avg_param_G, netsD, epoch)
