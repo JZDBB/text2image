@@ -24,6 +24,8 @@ import time
 import numpy as np
 import sys
 from tensorboardX import SummaryWriter
+from utils.saver import Saver
+from utils import learning_rates
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -106,36 +108,7 @@ class condGANTrainer(object):
         print('# of netsD', len(netsD))
         #
         epoch = 0
-        if cfg.TRAIN.NET_G != '':
-            state_dict = \
-                torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
-            netG.load_state_dict(state_dict)
-            print('Load G from: ', cfg.TRAIN.NET_G)
-            istart = cfg.TRAIN.NET_G.rfind('_') + 1
-            iend = cfg.TRAIN.NET_G.rfind('.')
-            epoch = cfg.TRAIN.NET_G[istart:iend]
-            epoch = int(epoch) + 1
-            if cfg.TRAIN.B_NET_D:
-                Gname = cfg.TRAIN.NET_G
-                for i in range(len(netsD)):
-                    s_tmp = Gname[:Gname.rfind('/')]
-                    Dname = '%s/netD%d.pth' % (s_tmp, i)
-                    print('Load D from: ', Dname)
-                    state_dict = \
-                        torch.load(Dname, map_location=lambda storage, loc: storage)
-                    netsD[i].load_state_dict(state_dict)
-            encoder_path = cfg.TRAIN.NET_G.replace("netG_epoch_", "netE")
-            state_dict = torch.load(encoder_path, map_location=lambda storage, loc: storage)
-            text_encoder.load_state_dict(state_dict)
-            print('Load D from: ', encoder_path)
 
-        # ########################################################### #
-        if cfg.CUDA:
-            text_encoder = text_encoder.cuda()
-            image_encoder = image_encoder.cuda()
-            netG.cuda()
-            for i in range(len(netsD)):
-                netsD[i].cuda()
         return [text_encoder, image_encoder, netG, netsD, epoch]
 
     def define_optimizers(self, netG, text_encoder, netsD):
@@ -146,7 +119,7 @@ class condGANTrainer(object):
                              lr=cfg.TRAIN.DISCRIMINATOR_LR,
                              betas=(0.5, 0.999))
             optimizersD.append(opt)
-			
+
         optimizerE = optim.Adam(text_encoder.parameters(),
                                 lr=cfg.TRAIN.GENERATOR_LR*0.5,
                                 betas=(0.5, 0.999))
@@ -161,6 +134,33 @@ class condGANTrainer(object):
         for param_group in optimizer.param_groups:
             param_group['lr'] = param_group['lr'] * decay_rate
 
+    def load_model(self, text_encoder, netG, netsD):
+        state_dict = \
+            torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
+        netG.load_state_dict(state_dict['model'])
+        self.optimizerG.load_state_dict(state_dict['optimizer'])
+        print('Load G from: ', cfg.TRAIN.NET_G)
+        istart = cfg.TRAIN.NET_G.rfind('_') + 1
+        iend = cfg.TRAIN.NET_G.rfind('.')
+        epoch = cfg.TRAIN.NET_G[istart:iend]
+        epoch = int(epoch) + 1
+        if cfg.TRAIN.B_NET_D:
+            Gname = cfg.TRAIN.NET_G
+            for i in range(len(netsD)):
+                s_tmp = Gname[:Gname.rfind('/')]
+                Dname = '%s/netD%d.pth' % (s_tmp, i)
+                print('Load D from: ', Dname)
+                state_dict = \
+                    torch.load(Dname, map_location=lambda storage, loc: storage)
+                netsD[i].load_state_dict(state_dict['model'])
+                self.optimizersD[i].load_state_dict(state_dict['optimizer'])
+        encoder_path = cfg.TRAIN.NET_G.replace("netG_epoch_", "netE")
+        state_dict = torch.load(encoder_path, map_location=lambda storage, loc: storage)
+        text_encoder.load_state_dict(state_dict['model'])
+        self.optimizerE.load_state_dict(state_dict['optimizer'])
+        print('Load D from: ', encoder_path)
+
+        return text_encoder, netG, netsD, epoch
 
     def prepare_labels(self):
         batch_size = self.batch_size
@@ -177,15 +177,26 @@ class condGANTrainer(object):
     def save_model(self, netG, text_encoder, avg_param_G, netsD, epoch):
         backup_para = copy_G_params(netG)
         load_params(netG, avg_param_G)
-        torch.save(netG.state_dict(),
-            '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
+        statu = {
+            'epoch': epoch,
+            'model': netG.state_dict(),
+            'optimizer': self.optimizerG
+        }
+        torch.save(statu, '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
         load_params(netG, backup_para)
-        torch.save(text_encoder.state_dict(),
-                    '%s/netE%d.pth' % (self.model_dir, epoch))
+        statu = {
+            'epoch': epoch,
+            'model': text_encoder.state_dict(),
+            'optimizer': self.optimizerE
+        }
+        torch.save(statu, '%s/netE%d.pth' % (self.model_dir, epoch))
         for i in range(len(netsD)):
-            netD = netsD[i]
-            torch.save(netD.state_dict(),
-                '%s/netD%d.pth' % (self.model_dir, i))
+            statu = {
+                'epoch': epoch,
+                'model': netsD[i].state_dict(),
+                'optimizer': self.optimizersD[i].state_dict()
+            }
+            torch.save(statu, '%s/netD%d.pth' % (self.model_dir, i))
         print('Save G/Ds models.')
 
     def set_requires_grad_value(self, models_list, brequires):
@@ -242,7 +253,15 @@ class condGANTrainer(object):
         self.writer = SummaryWriter(os.path.join(self.log_dir, "new"))
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
-        optimizerG, optimizerE, optimizersD = self.define_optimizers(netG, text_encoder, netsD)
+        self.optimizerG, self.optimizerE, self.optimizersD = self.define_optimizers(netG, text_encoder, netsD)
+        if cfg.TRAIN.NET_G != '':
+            text_encoder, netG, netsD, start_epoch = self.load_model(text_encoder, netG, netsD)
+        if cfg.CUDA:
+            text_encoder = text_encoder.cuda()
+            image_encoder = image_encoder.cuda()
+            netG.cuda()
+            for i in range(len(netsD)):
+                netsD[i].cuda()
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
         batch_size = self.batch_size
@@ -298,7 +317,7 @@ class condGANTrainer(object):
                                               sent_emb, real_labels, fake_labels)
                     # backward and update parameters
                     errD.backward()
-                    optimizersD[i].step()
+                    self.optimizersD[i].step()
                     errD_total += errD
                     errD_.append(errD)
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
@@ -326,8 +345,9 @@ class condGANTrainer(object):
                 #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
                 # backward and update parameters
                 errG_total.backward()
-                optimizerG.step()
-                optimizerE.step()
+                self.optimizerG.step()
+                if epoch > 300:
+                    self.optimizerE.step()
 				
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)

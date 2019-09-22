@@ -2,7 +2,7 @@ backup
 output
 code/*.pyc
 code/miscc/*.pyc
-code/utils/*.pyc
 .DS_Store
 .idea/
-
+code/utils/
+eval/pytorch-fid/
