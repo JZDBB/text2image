@@ -12,7 +12,7 @@ TREE:
 
 TRAIN:
     FLAG: True
-    NET_G: '../output/birds_attn2_2019_08_29_15_33_20/Model/netG_epoch_820.pth'  # '../models/bird_AttnGAN2.pth' ../output/birds_SIAGAN600/Model/netG_epoch_260.pth
+    NET_G: ''  # ../output/birds_attn2_2019_08_29_15_33_20/Model/netG_epoch_820.pth '../models/bird_AttnGAN2.pth' ../output/birds_SIAGAN600/Model/netG_epoch_260.pth
     B_NET_D: True
     BATCH_SIZE: 18  # 22
     MAX_EPOCH: 1000
