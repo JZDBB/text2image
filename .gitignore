@@ -4,5 +4,5 @@ code/*.pyc
 code/miscc/*.pyc
 .DS_Store
 .idea/
-code/utils/
+code/utils/*.pyc
 eval/pytorch-fid/
