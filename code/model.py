@@ -9,6 +9,8 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
+from mca import MCA_ED as MCA
+from mca import Cfgs as C
 
 
 class GLU(nn.Module):
@@ -152,6 +154,7 @@ class RNN_ENCODER(nn.Module):
         else:
             sent_emb = hidden.transpose(0, 1).contiguous()
         sent_emb = sent_emb.view(-1, self.nhidden * self.num_directions)
+        # print(words_emb.shape, sent_emb.shape)
         return words_emb, sent_emb
 
 
@@ -262,6 +265,48 @@ class CNN_ENCODER(nn.Module):
             features = self.emb_features(features)
         return features, cnn_code
 
+class Regin(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(Regin, self).__init__()
+        self.conv = nn.Conv2d(in_ch, out_ch, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, stride=2, padding=1)
+        self.dieconv = nn.Conv2d(in_ch, out_ch, 3, stride=4, dilation=2, padding=2)
+        self.dieconv2 = nn.Conv2d(out_ch, out_ch, 3, stride=4, dilation=2, padding=2)
+
+    def forward(self, x, channel):
+        layer1 = self.conv(x)
+        layer1 = self.conv2(layer1)
+        layer1 = layer1.view(-1, channel, 256)
+        layer2 = self.dieconv(x)
+        layer2 = self.dieconv2(layer2)
+        # print(layer2.shape)
+        layer2 = layer2.view(-1, channel, 16)
+        out = torch.cat([layer1, layer2], 2)
+        out = out.transpose(1, 2)
+        return out
+
+class upfeature(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(upfeature, self).__init__()
+        self.conv = nn.ConvTranspose2d(in_ch, out_ch, 3, stride=2, output_padding=1, padding=1)
+        self.conv2 = nn.ConvTranspose2d(out_ch, out_ch, 3, stride=2, output_padding=1, padding=1)
+
+        self.dieconv = nn.ConvTranspose2d(in_ch, out_ch, 3, stride=4, dilation=2, output_padding=1, padding=1)
+        self.dieconv2 = nn.ConvTranspose2d(out_ch, out_ch, 3, stride=4, dilation=2, output_padding=1, padding=1)
+
+    def forward(self, x, channel):
+
+        layer1, layer2 = x[:, :256, :], x[:, 256:, :]
+        layer1 = layer1.view(-1, channel, 16, 16)
+        layer1 = self.conv(layer1)
+        layer1 = self.conv2(layer1)
+        layer2 = layer2.view(-1, channel, 4, 4)
+        layer2 = self.dieconv(layer2)
+        layer2 = self.dieconv2(layer2)
+        # print(layer2.shape, layer1.shape)
+        out = torch.cat([layer1, layer2], 1)
+        return out
+
 
 # ############## G networks ###################
 class CA_NET(nn.Module):
@@ -354,9 +399,19 @@ class NEXT_STAGE_G(nn.Module):
 
     def define_module(self):
         ngf = self.gf_dim
-        self.att = ATT_NET(ngf, self.ef_dim)
+        # self.att = ATT_NET(ngf, self.ef_dim)
+        self.att = MCA()
         self.residual = self._make_layer(ResBlock, ngf * 2)
         self.upsample = upBlock(ngf * 2, ngf)
+        self.re = Regin(ngf, ngf*4)
+        self.lstm = nn.LSTM(256, 128, num_layers=1, batch_first=True)
+        self.deconv = upfeature(ngf*4, ngf//2)
+
+    def make_mask(self, feature):
+        return (torch.sum(
+            torch.abs(feature),
+            dim=-1
+        ) == 0).unsqueeze(1).unsqueeze(2)
 
     def forward(self, h_code, c_code, word_embs, mask):
         """
@@ -365,15 +420,30 @@ class NEXT_STAGE_G(nn.Module):
             c_code1: batch x idf x queryL
             att1: batch x sourceL x queryL
         """
-        self.att.applyMask(mask)
-        c_code, att = self.att(h_code, word_embs)
-        h_c_code = torch.cat((h_code, c_code), 1)
+        # self.att.applyMask(mask)
+        # c_code, att = self.att(h_code, word_embs)
+        # h_c_code = torch.cat((h_code, c_code), 1)
+        # MCA
+        # print("hshape", h_code.shape)
+        if h_code.shape[2] == 64:
+            x = self.re(h_code, self.gf_dim*4)
+            x_mask = self.make_mask(x)
+            y = word_embs.transpose(1, 2)
+            y_mask = self.make_mask(y)
+            y, _ = self.lstm(y)
+            att, _ = self.att(x, y, x_mask, y_mask)
+            att = self.deconv(att, self.gf_dim*4)
+            h_c_code = torch.cat((h_code, att), 1)
+
+        else:
+            ## !!!
+            h_c_code = torch.cat((h_code, h_code), 1)
         out_code = self.residual(h_c_code)
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
         # b, w, h, c = out_code.size()
 
-        return out_code, att
+        return out_code#, att
 
 class GET_INIT_IMAGE_G(nn.Module):
     def __init__(self, ngf):
@@ -451,20 +521,19 @@ class G_NET(nn.Module):
             fake_img1_out = self.tanh(fake_img1)
             fake_imgs.append(fake_img1_out)
         if cfg.TREE.BRANCH_NUM > 1:
-            h_code2, att1 = self.h_net2(h_code1, c_code, word_embs, mask)
+            h_code2 = self.h_net2(h_code1, c_code, word_embs, mask)
             fake_img2 = self.img_net2(h_code2, fake_img1)
             fake_img2_out = self.tanh(fake_img2)
             fake_imgs.append(fake_img2_out)
-            if att1 is not None:
-                att_maps.append(att1)
+            # if att1 is not None:
+            #     att_maps.append(att1)
         if cfg.TREE.BRANCH_NUM > 2:
-            h_code3, att2 = \
-                self.h_net3(h_code2, c_code, word_embs, mask)
+            h_code3 = self.h_net3(h_code2, c_code, word_embs, mask)
             fake_img3 = self.img_net3(h_code3, fake_img2)
             fake_img3_out = self.tanh(fake_img3)
             fake_imgs.append(fake_img3_out)
-            if att2 is not None:
-                att_maps.append(att2)
+            # if att2 is not None:
+            #     att_maps.append(att2)
 
         return fake_imgs, att_maps, mu, logvar
 
@@ -699,3 +768,4 @@ class D_NET256(nn.Module):
         x_code4 = self.img_code_s64_1(x_code4)
         x_code4 = self.img_code_s64_2(x_code4)
         return x_code4
+
