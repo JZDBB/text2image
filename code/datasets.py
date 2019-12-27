@@ -51,6 +51,7 @@ def prepare_data(data):
     else:
         captions = Variable(captions)
         sorted_cap_lens = Variable(sorted_cap_lens)
+
     return [real_imgs, captions, sorted_cap_lens,
             class_ids, keys]
 
@@ -132,7 +133,7 @@ class TextDataset(data.Dataset):
         #
         filename_bbox = {img_file[:-4]: [] for img_file in filenames}
         numImgs = len(filenames)
-        for i in range(0, numImgs):
+        for i in xrange(0, numImgs):
             # bbox = [x-left, y-top, width, height]
             bbox = df_bounding_boxes.iloc[i][1:].tolist()
 
@@ -141,7 +142,7 @@ class TextDataset(data.Dataset):
         #
         return filename_bbox
 
-    def load_captions(self, data_dir, filenames):#load caption from file:text
+    def load_captions(self, data_dir, filenames):
         all_captions = []
         for i in range(len(filenames)):
             cap_path = '%s/text/%s.txt' % (data_dir, filenames[i])
@@ -250,7 +251,7 @@ class TextDataset(data.Dataset):
     def load_class_id(self, data_dir, total_num):
         if os.path.isfile(data_dir + '/class_info.pickle'):
             with open(data_dir + '/class_info.pickle', 'rb') as f:
-                class_id = pickle.load(f, encoding='bytes')
+                class_id = pickle.load(f)
         else:
             class_id = np.arange(total_num)
         return class_id
@@ -259,7 +260,7 @@ class TextDataset(data.Dataset):
         filepath = '%s/%s/filenames.pickle' % (data_dir, split)
         if os.path.isfile(filepath):
             with open(filepath, 'rb') as f:
-                filenames = pickle.load(f, encoding='bytes')
+                filenames = pickle.load(f)
             print('Load filenames from: %s (%d)' % (filepath, len(filenames)))
         else:
             filenames = []
@@ -267,7 +268,6 @@ class TextDataset(data.Dataset):
 
     def get_caption(self, sent_ix):
         # a list of indices for a sentence
-	#print(sent_ix,'---',len(self.captions),self.captions[9])
         sent_caption = np.asarray(self.captions[sent_ix]).astype('int64')
         if (sent_caption == 0).sum() > 0:
             print('ERROR: do not need END (0) token', sent_caption)
@@ -293,12 +293,11 @@ class TextDataset(data.Dataset):
         #
         if self.bbox is not None:
             bbox = self.bbox[key]
-            data_dir = '%s/CUB_200_2011' % self.data_dir#load images
+            data_dir = '%s/CUB_200_2011' % self.data_dir
         else:
             bbox = None
             data_dir = self.data_dir
         #
-        #img_name = '%s/images/%s.jpg' % (data_dir, key.split('/')[-1])#gai
         img_name = '%s/images/%s.jpg' % (data_dir, key)
         imgs = get_imgs(img_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)

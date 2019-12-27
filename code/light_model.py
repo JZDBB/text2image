@@ -9,11 +9,36 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
+from miscc.carafe import CARAFE
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 from GlobalAttention import GlobalAttention_text as ATT_NET_text
 from spectral import SpectralNorm
-from miscc.carafe import CARAFE
 
+class Sepconv3x3(nn.Module):
+    def __init__(self, input, output, group, bias):
+        super(Sepconv3x3, self).__init__()
+        self.Seperate = nn.Conv2d(
+            in_channels=input,
+            out_channels=input,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            bias=bias,
+            groups=group
+        )
+        self.Pointwise = nn.Conv2d(
+            in_channels=input,
+            out_channels=output,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            groups=1
+        )
+
+    def forward(self, input):
+        out = self.Seperate(input)
+        out = self.Pointwise(out)
+        return out
 
 class GLU(nn.Module):
     def __init__(self):
@@ -33,8 +58,23 @@ def conv1x1(in_planes, out_planes, bias=False):
 
 def conv3x3(in_planes, out_planes, bias=False):
     "3x3 convolution with padding"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=1, padding=1, bias=bias)
-    # return Sepconv3x3(in_planes, out_planes, group=4, bias=bias)
+    # return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=1, padding=1, bias=bias)
+    return Sepconv3x3(in_planes, out_planes, group=4, bias=bias)
+
+class conv2d(nn.Module):
+    def __init__(self, input, output, stride=1, bias=False):
+        super(conv2d, self).__init__()
+
+        self.Conv3x3 = nn.Conv2d(input, 4, kernel_size=3, stride=stride, padding=1, bias=bias)
+        self.Conv5x5 = nn.Conv2d(input, 4, kernel_size=5, stride=stride, padding=1, bias=bias)
+        self.Conv1x1 = conv1x1(8, output)
+
+    def forward(self, x):
+        out1 = self.Conv3x3(x)
+        out2 = self.Conv5x5(x)
+        out = torch.cat([out1, out2], dim=1)
+        out = self.Conv1x1(out)
+        return out
 
 
 # Upsale the spatial size by a factor of 2
@@ -71,6 +111,87 @@ class ResBlock(nn.Module):
         out = self.block(x)
         out += residual
         return out
+
+def channel_split(x, split):
+    """split a tensor into two pieces along channel dimension
+    Args:
+        x: input tensor
+        split:(int) channel size for each pieces
+    """
+    assert x.size(1) == split * 2
+    return torch.split(x, split, dim=1)
+
+def channel_shuffle(x, groups):
+    """channel shuffle operation
+    Args:
+        x: input tensor
+        groups: input branch number
+    """
+
+    batch_size, channels, height, width = x.size()
+    channels_per_group = int(channels / groups)
+
+    x = x.view(batch_size, groups, channels_per_group, height, width)
+    x = x.transpose(1, 2).contiguous()
+    x = x.view(batch_size, -1, height, width)
+
+    return x
+
+
+class ShuffleBlock(nn.Module):
+    def __init__(self, in_channels, stride=1):
+        super(ShuffleBlock, self).__init__()
+        self.stride = stride
+        self.in_channels = in_channels
+        self.out_channels = in_channels
+
+        if stride != 1 or self.in_channels != self.out_channels:
+            self.residual = nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 1),
+                nn.BatchNorm2d(in_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.BatchNorm2d(in_channels),
+                nn.Conv2d(in_channels, int(in_channels / 2), 1),
+                nn.BatchNorm2d(int(in_channels / 2)),
+                nn.ReLU(inplace=True)
+            )
+
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.BatchNorm2d(in_channels),
+                nn.Conv2d(in_channels, int(in_channels / 2), 1),
+                nn.BatchNorm2d(int(in_channels / 2)),
+                nn.ReLU(inplace=True)
+            )
+        else:
+            self.shortcut = nn.Sequential()
+
+            in_channels = int(in_channels / 2)
+            self.residual = nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 1),
+                nn.BatchNorm2d(in_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.BatchNorm2d(in_channels),
+                nn.Conv2d(in_channels, in_channels, 1),
+                nn.BatchNorm2d(in_channels),
+                nn.ReLU(inplace=True)
+            )
+
+    def forward(self, x):
+
+        if self.stride == 1 and self.out_channels == self.in_channels:
+            shortcut, residual = channel_split(x, int(self.in_channels / 2))
+        else:
+            shortcut = x
+            residual = x
+
+        shortcut = self.shortcut(shortcut)
+        residual = self.residual(residual)
+        x = torch.cat([shortcut, residual], dim=1)
+        x = channel_shuffle(x, 2)
+        return x
 
 
 # ############## Text2Image Encoder-Decoder #######
@@ -317,8 +438,6 @@ class INIT_STAGE_G(nn.Module):
         self.upsample2 = upBlock(ngf // 2, ngf // 4)
         self.upsample3 = upBlock(ngf // 4, ngf // 8)
         self.upsample4 = upBlock(ngf // 8, ngf // 16)
-        # self.upsample4 = CARAFE(ngf // 8)
-        # self.conv = conv1x1(ngf // 8, ngf // 16, bias=False)
 
     def forward(self, z_code, c_code):
         """
@@ -338,7 +457,6 @@ class INIT_STAGE_G(nn.Module):
         out_code32 = self.upsample3(out_code)
         # state size ngf/16 x 64 x 64
         out_code64 = self.upsample4(out_code32)
-        # out_code64 = self.conv(out_code64)
 
         return out_code64
 
@@ -434,9 +552,8 @@ class NEXT_STAGE_G(nn.Module):
             nn.Conv2d(self.gf_dim * 2, 1, kernel_size=1, stride=1, padding=0),
             nn.Sigmoid()
         )
-        self.residual = self._make_layer(ResBlock, ngf * 2)
-        self.upsample = CARAFE(ngf*2)
-        self.conv = conv1x1(ngf*2, ngf)
+        self.residual = self._make_layer(ShuffleBlock, ngf * 2)
+        self.upsample = upBlock(ngf * 2, ngf)
 
     def forward(self, h_code, c_code, word_embs, mask, cap_lens):
         """
@@ -470,7 +587,6 @@ class NEXT_STAGE_G(nn.Module):
         out_code = self.residual(h_code_new)
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
-        out_code = self.conv(out_code)
         return out_code, att
 
 
@@ -598,6 +714,10 @@ def downBlock(in_planes, out_planes):
         nn.LeakyReLU(0.2, inplace=True)
     )
     return block
+
+# def Conv2d(in_channel, out_channel, kernel=3, stride=1, bias=False):
+
+
 
 # Downsale the spatial size by a factor of 16
 def encode_image_by_16times(ndf):

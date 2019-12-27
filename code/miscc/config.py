@@ -30,7 +30,7 @@ __C.TRAIN = edict()
 __C.TRAIN.BATCH_SIZE = 64
 __C.TRAIN.MAX_EPOCH = 600
 __C.TRAIN.SNAPSHOT_INTERVAL = 2000
-__C.TRAIN.DISCRIMINATOR_LR = 0.01
+__C.TRAIN.DISCRIMINATOR_LR = 2e-4
 __C.TRAIN.GENERATOR_LR = 2e-4
 __C.TRAIN.ENCODER_LR = 2e-4
 __C.TRAIN.RNN_GRAD_CLIP = 0.25
@@ -70,9 +70,9 @@ def _merge_a_into_b(a, b):
     if type(a) is not edict:
         return
 
-    for k, v in a.items():
+    for k, v in a.iteritems():
         # a must specify keys that are in b
-        if k not in b:
+        if not b.has_key(k):
             raise KeyError('{} is not a valid config key'.format(k))
 
         # the types must match, too
@@ -99,6 +99,7 @@ def _merge_a_into_b(a, b):
 def cfg_from_file(filename):
     """Load a config file and merge it into the default options."""
     import yaml
+    # filename = "../cfg/eval_bird.yml"
     with open(filename, 'r') as f:
         yaml_cfg = edict(yaml.load(f))
 
