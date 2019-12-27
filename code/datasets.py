@@ -56,8 +56,9 @@ def prepare_data(data):
 
 
 def get_imgs(img_path, imsize, bbox=None,
-             transform=None, normalize=None):
-    img = Image.open(img_path).convert('RGB')
+             transform=None, normalize=None, data=None):
+    img = Image.open(img_path).convert('L')
+
     width, height = img.size
     if bbox is not None:
         r = int(np.maximum(bbox[2], bbox[3]) * 0.75)
@@ -73,8 +74,17 @@ def get_imgs(img_path, imsize, bbox=None,
         img = transform(img)
 
     ret = []
-    if cfg.GAN.B_DCGAN:
-        ret = [normalize(img)]
+    if data == 'images':
+        if cfg.GAN.B_DCGAN:
+            ret = [normalize(img)]
+        else:
+            for i in range(cfg.TREE.BRANCH_NUM):
+                # print(imsize[i])
+                if i < (cfg.TREE.BRANCH_NUM - 1):
+                    re_img = transforms.Scale(imsize[i])(img)
+                else:
+                    re_img = img
+                ret.append(normalize(re_img))
     else:
         for i in range(cfg.TREE.BRANCH_NUM):
             # print(imsize[i])
@@ -82,6 +92,8 @@ def get_imgs(img_path, imsize, bbox=None,
                 re_img = transforms.Scale(imsize[i])(img)
             else:
                 re_img = img
+            re_img = np.asarray(re_img)
+            re_img = (re_img / 128.0 - 1.).astype(np.float32)
             ret.append(normalize(re_img))
 
     return ret
@@ -92,9 +104,13 @@ class TextDataset(data.Dataset):
                  base_size=64,
                  transform=None, target_transform=None, name="images"):
         self.transform = transform
-        self.norm = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        if name == 'images':
+            self.norm = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        else:
+            self.norm = transforms.Compose([
+                transforms.ToTensor()])
         self.target_transform = target_transform
         self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
         self.name = name
@@ -301,16 +317,16 @@ class TextDataset(data.Dataset):
         #img_name = '%s/images/%s.jpg' % (data_dir, key.split('/')[-1])#gai
         if self.name == 'images':
             img_name = '%s/%s/%s.jpg' % (data_dir, self.name, key)
+
         else:
             img_name = '%s/%s/%s.png' % (data_dir, self.name, key)
         imgs = get_imgs(img_name, self.imsize,
-                        bbox, self.transform, normalize=self.norm)
+                        bbox, self.transform, normalize=self.norm, data=self.name)
         # random select a sentence
         sent_ix = random.randint(0, self.embeddings_num)
         new_sent_ix = index * self.embeddings_num + sent_ix
         caps, cap_len = self.get_caption(new_sent_ix)
         return imgs, caps, cap_len, cls_id, key
-
 
     def __len__(self):
         return len(self.filenames)

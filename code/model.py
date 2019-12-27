@@ -651,6 +651,26 @@ def downBlock(in_planes, out_planes):
     )
     return block
 
+def encode_mask_by_16times(ndf):
+    encode_img = nn.Sequential(
+        # --> state size. ndf x in_size/2 x in_size/2
+        nn.Conv2d(1, ndf, 4, 2, 1, bias=False),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 2ndf x x in_size/4 x in_size/4
+        nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 2),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 4ndf x in_size/8 x in_size/8
+        nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 4),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 8ndf x in_size/16 x in_size/16
+        nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 8),
+        nn.LeakyReLU(0.2, inplace=True)
+    )
+    return encode_img
+
 
 # Downsale the spatial size by a factor of 16
 def encode_image_by_16times(ndf):
@@ -701,6 +721,24 @@ class D_GET_LOGITS(nn.Module):
 
         output = self.outlogits(h_c_code)
         return output.view(-1)
+
+
+# For 64 x 64 masks
+class D_MASK(nn.Module):
+    def __init__(self, b_jcu=True):
+        super(D_MASK, self).__init__()
+        ndf = cfg.GAN.DF_DIM
+        nef = cfg.TEXT.EMBEDDING_DIM
+        self.img_code_s16 = encode_image_by_16times(ndf)
+        if b_jcu:
+            self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, bcondition=False)
+        else:
+            self.UNCOND_DNET = None
+        self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
+
+    def forward(self, x_var):
+        x_code4 = self.img_code_s16(x_var)  # 4 x 4 x 8df
+        return x_code4
 
 
 # For 64 x 64 images

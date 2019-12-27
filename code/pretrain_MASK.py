@@ -21,8 +21,7 @@ from miscc.utils import mkdir_p
 from miscc.losses import discriminator_loss, mask_loss, KL_loss,TV_loss
 from datasets import TextDataset
 from datasets import prepare_data
-from model import G_MASK, RNN_ENCODER
-from zzbb import D_NET64
+from model import G_MASK, RNN_ENCODER, D_MASK
 from tensorboardX import SummaryWriter
 
 
@@ -53,7 +52,7 @@ def build_models(n_words):
     print('Load text encoder from:', cfg.TRAIN.NET_E)
     text_encoder.eval()
     G = G_MASK()
-    D = D_NET64()
+    D = D_MASK()
     start_epoch = 0
     if cfg.CUDA:
         text_encoder = text_encoder.cuda()
@@ -102,6 +101,16 @@ def load_model(net, opt, name):
     epoch = name[istart:iend]
     epoch = int(epoch) + 1
     return net, opt, epoch
+
+def image_comp(image):
+
+    result = np.ndarray(shape=(1, 64 * 8, 64 * 8), dtype=np.float32)
+    for i in range(64):
+        im = image[i, :].cpu().data.numpy()
+        x = i // 8
+        y = i % 8
+        result[0, x * 64: x*64 + 64, y * 64:y*64+64] = im
+    return result
 
 def train(output_dir, data_loader, n_words):
     model_dir = os.path.join(output_dir, 'Model')
@@ -194,8 +203,10 @@ def train(output_dir, data_loader, n_words):
                 writer.add_scalar("watch/errG", errG_total, gen_iterations)
                 writer.add_scalar("watch/real", pred_loss[0], gen_iterations)
                 writer.add_scalar("watch/fake", pred_loss[1], gen_iterations)
-                writer.add_image('real_image', imgs[0][0], gen_iterations)
-                writer.add_image('fake_image', fake_imgs[0], gen_iterations)
+                real = image_comp(imgs[0])
+                fake = image_comp(fake_imgs)
+                writer.add_image('real_image', real, gen_iterations)
+                writer.add_image('fake_image', fake, gen_iterations)
 
             if gen_iterations % 100 == 0:
                 print(D_logs + '\n' + G_logs)
@@ -260,7 +271,7 @@ if __name__ == "__main__":
     dataset = TextDataset(cfg.DATA_DIR, split_dir,
                           base_size=cfg.TREE.BASE_SIZE,
                           transform=image_transform,
-                          name='segmentations')
+                          name='binary')
     assert dataset
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
