@@ -6,7 +6,7 @@ from torchvision import models
 import torch.utils.model_zoo as model_zoo
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from PIL import Image
+
 
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
@@ -370,28 +370,12 @@ class NEXT_STAGE_G(nn.Module):
         c_code, att = self.att(h_code, word_embs)
         h_c_code = torch.cat((h_code, c_code), 1)
         out_code = self.residual(h_c_code)
+
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
-        # b, w, h, c = out_code.size()
 
         return out_code, att
 
-class GET_INIT_IMAGE_G(nn.Module):
-    def __init__(self, ngf):
-        super(GET_INIT_IMAGE_G, self).__init__()
-        self.gf_dim = ngf
-        self.img = nn.Sequential(
-            conv3x3(ngf, 3),
-            nn.Tanh()
-        )
-        # self.tanh = nn.Tanh()
-        # self.Up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-
-    def forward(self, h_code):
-        out_img = self.img(h_code)
-        # out_img += self.Up(org_img)
-        # out_img = self.tanh(out_img)
-        return out_img
 
 class GET_IMAGE_G(nn.Module):
     def __init__(self, ngf):
@@ -402,12 +386,14 @@ class GET_IMAGE_G(nn.Module):
             # nn.Tanh()
         )
         self.tanh = nn.Tanh()
-        self.Up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
-    def forward(self, org_img, h_code):
+    def forward(self, h_code, img=None):
         out_img = self.img(h_code)
-        out_img += self.Up(org_img)
-        out_img = self.tanh(out_img)
+            # out_img = self.tanh(out_img)
+        if img is not None:
+            img = self.upsample(img)
+            out_img = out_img + img
         return out_img
 
 
@@ -418,10 +404,11 @@ class G_NET(nn.Module):
         nef = cfg.TEXT.EMBEDDING_DIM
         ncf = cfg.GAN.CONDITION_DIM
         self.ca_net = CA_NET()
+        self.tanh = nn.Tanh()
 
         if cfg.TREE.BRANCH_NUM > 0:
             self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
-            self.img_net1 = GET_INIT_IMAGE_G(ngf)
+            self.img_net1 = GET_IMAGE_G(ngf)
         # gf x 64 x 64
         if cfg.TREE.BRANCH_NUM > 1:
             self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf)
@@ -445,19 +432,21 @@ class G_NET(nn.Module):
         if cfg.TREE.BRANCH_NUM > 0:
             h_code1 = self.h_net1(z_code, c_code)
             fake_img1 = self.img_net1(h_code1)
-            fake_imgs.append(fake_img1)
+            fake_img1_out = self.tanh(fake_img1)
+            fake_imgs.append(fake_img1_out)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = self.h_net2(h_code1, c_code, word_embs, mask)
-            fake_img2 = self.img_net2(fake_img1, h_code2)
-            # fake_img2 += self.Up(fake_img1)
-            fake_imgs.append(fake_img2)
+            fake_img2 = self.img_net2(h_code2, fake_img1)
+            fake_img2_out = self.tanh(fake_img2)
+            fake_imgs.append(fake_img2_out)
             if att1 is not None:
                 att_maps.append(att1)
         if cfg.TREE.BRANCH_NUM > 2:
-            h_code3, att2 = self.h_net3(h_code2, c_code, word_embs, mask)
-            fake_img3 = self.img_net3(fake_img2, h_code3)
-            # fake_img3 += self.Up(fake_img2)
-            fake_imgs.append(fake_img3)
+            h_code3, att2 = \
+                self.h_net3(h_code2, c_code, word_embs, mask)
+            fake_img3 = self.img_net3(h_code3, fake_img2)
+            fake_img3_out = self.tanh(fake_img3)
+            fake_imgs.append(fake_img3_out)
             if att2 is not None:
                 att_maps.append(att2)
 

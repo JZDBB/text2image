@@ -24,15 +24,19 @@ import time
 import numpy as np
 import sys
 from tensorboardX import SummaryWriter
+from utils.saver import Saver
+from utils import learning_rates
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
-    def __init__(self, output_dir, data_loader, n_words, ixtoword):
+    def __init__(self, output_dir, data_loader, n_words, ixtoword, args):
         if cfg.TRAIN.FLAG:
             self.model_dir = os.path.join(output_dir, 'Model')
             self.image_dir = os.path.join(output_dir, 'Image')
+            self.log_dir = os.path.join(output_dir, "logs")
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
+            mkdir_p(self.log_dir)
 
         torch.cuda.set_device(cfg.GPU_ID)
         cudnn.benchmark = True
@@ -45,6 +49,7 @@ class condGANTrainer(object):
         self.ixtoword = ixtoword
         self.data_loader = data_loader
         self.num_batches = len(self.data_loader)
+        self.args = args
 
     def build_models(self):
         # ###################encoders######################################## #
@@ -103,31 +108,7 @@ class condGANTrainer(object):
         print('# of netsD', len(netsD))
         #
         epoch = 0
-        if cfg.TRAIN.NET_G != '':
-            state_dict = \
-                torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
-            netG.load_state_dict(state_dict)
-            print('Load G from: ', cfg.TRAIN.NET_G)
-            istart = cfg.TRAIN.NET_G.rfind('_') + 1
-            iend = cfg.TRAIN.NET_G.rfind('.')
-            epoch = cfg.TRAIN.NET_G[istart:iend]
-            epoch = int(epoch) + 1
-            if cfg.TRAIN.B_NET_D:
-                Gname = cfg.TRAIN.NET_G
-                for i in range(len(netsD)):
-                    s_tmp = Gname[:Gname.rfind('/')]
-                    Dname = '%s/netD%d.pth' % (s_tmp, i)
-                    print('Load D from: ', Dname)
-                    state_dict = \
-                        torch.load(Dname, map_location=lambda storage, loc: storage)
-                    netsD[i].load_state_dict(state_dict)
-        # ########################################################### #
-        if cfg.CUDA:
-            text_encoder = text_encoder.cuda()
-            image_encoder = image_encoder.cuda()
-            netG.cuda()
-            for i in range(len(netsD)):
-                netsD[i].cuda()
+
         return [text_encoder, image_encoder, netG, netsD, epoch]
 
     def define_optimizers(self, netG, text_encoder, netsD):
@@ -138,7 +119,7 @@ class condGANTrainer(object):
                              lr=cfg.TRAIN.DISCRIMINATOR_LR,
                              betas=(0.5, 0.999))
             optimizersD.append(opt)
-			
+
         optimizerE = optim.Adam(text_encoder.parameters(),
                                 lr=cfg.TRAIN.GENERATOR_LR*0.5,
                                 betas=(0.5, 0.999))
@@ -148,6 +129,38 @@ class condGANTrainer(object):
                                 betas=(0.5, 0.999))
 
         return optimizerG, optimizerE, optimizersD
+
+    def adjust_learning_rate(self, optimizer, decay_rate=.9):
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] * decay_rate
+
+    def load_model(self, text_encoder, netG, netsD):
+        state_dict = \
+            torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
+        netG.load_state_dict(state_dict['model'])
+        self.optimizerG.load_state_dict(state_dict['optimizer'])
+        print('Load G from: ', cfg.TRAIN.NET_G)
+        istart = cfg.TRAIN.NET_G.rfind('_') + 1
+        iend = cfg.TRAIN.NET_G.rfind('.')
+        epoch = cfg.TRAIN.NET_G[istart:iend]
+        epoch = int(epoch) + 1
+        if cfg.TRAIN.B_NET_D:
+            Gname = cfg.TRAIN.NET_G
+            for i in range(len(netsD)):
+                s_tmp = Gname[:Gname.rfind('/')]
+                Dname = '%s/netD%d.pth' % (s_tmp, i)
+                print('Load D from: ', Dname)
+                state_dict = \
+                    torch.load(Dname, map_location=lambda storage, loc: storage)
+                netsD[i].load_state_dict(state_dict['model'])
+                self.optimizersD[i].load_state_dict(state_dict['optimizer'])
+        encoder_path = cfg.TRAIN.NET_G.replace("netG_epoch_", "netE")
+        state_dict = torch.load(encoder_path, map_location=lambda storage, loc: storage)
+        text_encoder.load_state_dict(state_dict['model'])
+        self.optimizerE.load_state_dict(state_dict['optimizer'])
+        print('Load D from: ', encoder_path)
+
+        return text_encoder, netG, netsD, epoch
 
     def prepare_labels(self):
         batch_size = self.batch_size
@@ -164,15 +177,26 @@ class condGANTrainer(object):
     def save_model(self, netG, text_encoder, avg_param_G, netsD, epoch):
         backup_para = copy_G_params(netG)
         load_params(netG, avg_param_G)
-        torch.save(netG.state_dict(),
-            '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
+        statu = {
+            'epoch': epoch,
+            'model': netG.state_dict(),
+            'optimizer': self.optimizerG
+        }
+        torch.save(statu, '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
         load_params(netG, backup_para)
-        torch.save(text_encoder.state_dict(),
-                    '%s/netE%d.pth' % (self.model_dir, epoch))
+        statu = {
+            'epoch': epoch,
+            'model': text_encoder.state_dict(),
+            'optimizer': self.optimizerE
+        }
+        torch.save(statu, '%s/netE%d.pth' % (self.model_dir, epoch))
         for i in range(len(netsD)):
-            netD = netsD[i]
-            torch.save(netD.state_dict(),
-                '%s/netD%d.pth' % (self.model_dir, i))
+            statu = {
+                'epoch': epoch,
+                'model': netsD[i].state_dict(),
+                'optimizer': self.optimizersD[i].state_dict()
+            }
+            torch.save(statu, '%s/netD%d.pth' % (self.model_dir, i))
         print('Save G/Ds models.')
 
     def set_requires_grad_value(self, models_list, brequires):
@@ -202,6 +226,7 @@ class condGANTrainer(object):
                 fullpath = '%s/G_%s_%d_%d.png'\
                     % (self.image_dir, name, gen_iterations, i)
                 im.save(fullpath)
+        # self.writer.add_images("low res image maps", img_set.datach())
 
         # for i in range(len(netsD)):
         i = -1
@@ -221,11 +246,22 @@ class condGANTrainer(object):
                 % (self.image_dir, name, gen_iterations)
             im.save(fullpath)
 
+        # self.writer.add_images("high res image maps", im)
+
+
     def train(self):
-        self.writer = SummaryWriter('../output/logs/train')
+        self.writer = SummaryWriter(os.path.join(self.log_dir, "new"))
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
-        optimizerG, optimizerE, optimizersD = self.define_optimizers(netG, text_encoder, netsD)
+        self.optimizerG, self.optimizerE, self.optimizersD = self.define_optimizers(netG, text_encoder, netsD)
+        if cfg.TRAIN.NET_G != '':
+            text_encoder, netG, netsD, start_epoch = self.load_model(text_encoder, netG, netsD)
+        if cfg.CUDA:
+            text_encoder = text_encoder.cuda()
+            image_encoder = image_encoder.cuda()
+            netG.cuda()
+            for i in range(len(netsD)):
+                netsD[i].cuda()
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
         batch_size = self.batch_size
@@ -271,6 +307,7 @@ class condGANTrainer(object):
                 #######################################################
                 # (3) Update D network
                 ######################################################
+
                 errD_total = 0
                 D_logs = ''
                 errD_ = []
@@ -280,7 +317,7 @@ class condGANTrainer(object):
                                               sent_emb, real_labels, fake_labels)
                     # backward and update parameters
                     errD.backward()
-                    optimizersD[i].step()
+                    self.optimizersD[i].step()
                     errD_total += errD
                     errD_.append(errD)
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
@@ -294,9 +331,10 @@ class condGANTrainer(object):
 
                 # do not need to compute gradient for Ds
                 # self.set_requires_grad_value(netsD, False)
+                # if gen_iterations % 3 == 0:
                 netG.zero_grad()
                 text_encoder.zero_grad()
-                errG_total, G_logs = \
+                errG_total, G_logs, errG_list = \
                     generator_loss(netsD, image_encoder, fake_imgs, real_labels,
                                    words_embs, sent_emb, match_labels, cap_lens, class_ids)
                 kl_loss = KL_loss(mu, logvar)
@@ -307,8 +345,9 @@ class condGANTrainer(object):
                 #G_logs += 'tv_loss: %.2f ' % tv_loss.data[0]
                 # backward and update parameters
                 errG_total.backward()
-                optimizerG.step()
-                optimizerE.step()
+                self.optimizerG.step()
+                if epoch > 300:
+                    self.optimizerE.step()
 				
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
@@ -318,8 +357,15 @@ class condGANTrainer(object):
                     self.writer.add_scalar("watch/errD1", errD_[1], gen_iterations)
                     self.writer.add_scalar("watch/errD2", errD_[2], gen_iterations)
                     self.writer.add_scalar("watch/errD_total", errD_total, gen_iterations)
+                    self.writer.add_scalar("watch/errg0", errG_list[0], gen_iterations)
+                    self.writer.add_scalar("watch/errg1", errG_list[1], gen_iterations)
+                    self.writer.add_scalar("watch/errg2", errG_list[2], gen_iterations)
+                    self.writer.add_scalar("watch/word_loss", errG_list[3], gen_iterations)
+                    self.writer.add_scalar("watch/sent_loss", errG_list[4], gen_iterations)
                     self.writer.add_scalar("watch/errG", errG_total, gen_iterations)
-                    # self.writer.add_scalar("watch/learning_rate", lr, iteration)
+                    # self.writer.add_scalar("watch/p_real", errG_total, gen_iterations)
+                    # self.writer.add_scalar("watch/p_fake", errG_total, gen_iterations)
+                    # self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
 
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)
@@ -336,12 +382,22 @@ class condGANTrainer(object):
                     #                       words_embs, mask, image_encoder,
                     #                       captions, cap_lens,
                     #                       epoch, name='current')
-
+                # if optimizerG['lr'] > 2e-7:
+                #     if epoch < 100:
+                #         self.adjust_learning_rate(optimizerE, 1.1)
+                #         self.adjust_learning_rate(optimizerG, 1.1)
+                #         for opt in optimizersD:
+                #             self.adjust_learning_rate(opt, 1.1)
+                #     else:
+                #         self.adjust_learning_rate(optimizerE, 0.99)
+                #         self.adjust_learning_rate(optimizerG, 0.99)
+                #     for opt in optimizersD:
+                #         self.adjust_learning_rate(opt, 0.99)
 
             end_t = time.time()
 
             print('''[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'''
-                  % (epoch, self.max_epoch, self.num_batches, errD_total.item(), errG_total.item(), end_t - start_t))
+                  % (epoch,  self.max_epoch, self.num_batches, errD_total.item(), errG_total.item(), end_t - start_t))
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, text_encoder, avg_param_G, netsD, epoch)
@@ -452,86 +508,92 @@ class condGANTrainer(object):
 
     def sampling_n(self, split_dir):
         if cfg.TRAIN.NET_G == '':
-            print('Error: the path for morels is not found!')
-        else:
-            if split_dir == 'test':
-                split_dir = 'valid'
-            # Build and load the generator
-            if cfg.GAN.B_DCGAN:
-                netG = G_DCGAN()
+            if self.args.model is None:
+                print('Error: the path for morels is not found!')
+                return
             else:
-                netG = G_NET()
-            netG.apply(weights_init)
-            netG.cuda()
-            netG.eval()
-            #
-            text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-            state_dict = \
-                torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
-            text_encoder.load_state_dict(state_dict)
-            print('Load text encoder from:', cfg.TRAIN.NET_E)
-            text_encoder = text_encoder.cuda()
-            text_encoder.eval()
-
-            batch_size = self.batch_size
-            nz = cfg.GAN.Z_DIM
-            noise = Variable(torch.FloatTensor(batch_size, nz), volatile=True)
-            noise = noise.cuda()
-
+                model_dir = self.args.model
+        else:
             model_dir = cfg.TRAIN.NET_G
-            state_dict = \
-                torch.load(model_dir, map_location=lambda storage, loc: storage)
-            # state_dict = torch.load(cfg.TRAIN.NET_G)
-            netG.load_state_dict(state_dict)
-            print('Load G from: ', model_dir)
 
-            # the path to save generated images
-            s_tmp = model_dir[:model_dir.rfind('.pth')]
-            save_dir = '%s/%s' % (s_tmp, split_dir)
-            mkdir_p(save_dir)
+        if split_dir == 'test':
+            split_dir = 'valid'
+        # Build and load the generator
+        if cfg.GAN.B_DCGAN:
+            netG = G_DCGAN()
+        else:
+            netG = G_NET()
+        netG.apply(weights_init)
+        netG.cuda()
+        netG.eval()
+        #
+        text_encoder_dir = model_dir.replace("netG_epoch_", "netE")
+        text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
+        state_dict = \
+            torch.load(text_encoder_dir, map_location=lambda storage, loc: storage)
+        text_encoder.load_state_dict(state_dict)
+        print('Load text encoder from:', text_encoder_dir)
+        text_encoder = text_encoder.cuda()
+        text_encoder.eval()
 
-            cnt = 0
-            for cn in range(10):  # (cfg.TEXT.CAPTIONS_PER_IMAGE):
-                for step, data in enumerate(self.data_loader, 0):
-                    cnt += batch_size
-                    if step % 100 == 0:
-                        print('step: ', step)
-                    # if step > 50:
-                    #     break
+        batch_size = self.batch_size
+        nz = cfg.GAN.Z_DIM
+        noise = Variable(torch.FloatTensor(batch_size, nz), volatile=True)
+        noise = noise.cuda()
 
-                    imgs, captions, cap_lens, class_ids, keys = prepare_data(data)
+        state_dict = \
+            torch.load(model_dir, map_location=lambda storage, loc: storage)
+        # state_dict = torch.load(cfg.TRAIN.NET_G)
+        netG.load_state_dict(state_dict)
+        print('Load G from: ', model_dir)
 
-                    hidden = text_encoder.init_hidden(batch_size)
-                    # words_embs: batch_size x nef x seq_len
-                    # sent_emb: batch_size x nef
-                    words_embs, sent_emb = text_encoder(captions, cap_lens, hidden)
-                    words_embs, sent_emb = words_embs.detach(), sent_emb.detach()
-                    mask = (captions == 0)
-                    num_words = words_embs.size(2)
-                    if mask.size(1) > num_words:
-                        mask = mask[:, :num_words]
+        # the path to save generated images
+        s_tmp = model_dir[:model_dir.rfind('.pth')]
+        save_dir = '%s/%s' % (s_tmp, split_dir)
+        mkdir_p(save_dir)
 
-                    #######################################################
-                    # (2) Generate fake images
-                    ######################################################
-                    noise.data.normal_(0, 1)
-                    fake_imgs, _, _, _ = netG(noise, sent_emb, words_embs, mask)
-                    for j in range(batch_size):
-                        s_tmp = '%s/multiple/%s' % (save_dir, keys[j])
-                        folder = s_tmp[:s_tmp.rfind('/')]
-                        if not os.path.isdir(folder):
-                            print('Make a new folder: ', folder)
-                            mkdir_p(folder)
-                        k = -1 #-1
-                        # for k in range(len(fake_imgs)):
-                        im = fake_imgs[k][j].data.cpu().numpy()
-                        # [-1, 1] --> [0, 255]
-                        im = (im + 1.0) * 127.5
-                        im = im.astype(np.uint8)
-                        im = np.transpose(im, (1, 2, 0))
-                        im = Image.fromarray(im)
-                        fullpath = '%s_s%d.png' % (s_tmp, k-cn)
-                        im.save(fullpath)
+        cnt = 0
+        for cn in range(10):  # (cfg.TEXT.CAPTIONS_PER_IMAGE):
+            for step, data in enumerate(self.data_loader, 0):
+                cnt += batch_size
+                if step % 100 == 0:
+                    print('step: ', step)
+                # if step > 50:
+                #     break
+
+                imgs, captions, cap_lens, class_ids, keys = prepare_data(data)
+
+                hidden = text_encoder.init_hidden(batch_size)
+                # words_embs: batch_size x nef x seq_len
+                # sent_emb: batch_size x nef
+                words_embs, sent_emb = text_encoder(captions, cap_lens, hidden)
+                words_embs, sent_emb = words_embs.detach(), sent_emb.detach()
+                mask = (captions == 0)
+                num_words = words_embs.size(2)
+                if mask.size(1) > num_words:
+                    mask = mask[:, :num_words]
+
+                #######################################################
+                # (2) Generate fake images
+                ######################################################
+                noise.data.normal_(0, 1)
+                fake_imgs, _, _, _ = netG(noise, sent_emb, words_embs, mask)
+                for j in range(batch_size):
+                    s_tmp = '%s/multiple/%s' % (save_dir, keys[j])
+                    folder = s_tmp[:s_tmp.rfind('/')]
+                    if not os.path.isdir(folder):
+                        print('Make a new folder: ', folder)
+                        mkdir_p(folder)
+                    k = -1 #-1
+                    # for k in range(len(fake_imgs)):
+                    im = fake_imgs[k][j].data.cpu().numpy()
+                    # [-1, 1] --> [0, 255]
+                    im = (im + 1.0) * 127.5
+                    im = im.astype(np.uint8)
+                    im = np.transpose(im, (1, 2, 0))
+                    im = Image.fromarray(im)
+                    fullpath = '%s_s%d.png' % (s_tmp, k-cn)
+                    im.save(fullpath)
 
     def gen_example(self, data_dic):
         if cfg.TRAIN.NET_G == '':
