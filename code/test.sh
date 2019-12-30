@@ -1,5 +1,5 @@
 #!/bin/bash
-file = "/home/cv/xyn/text2image/print.txt"
+#file = "/home/cv/xyn/text2image/print.txt"
 #gpu = 0
 for i in {300..800..10};
 do
