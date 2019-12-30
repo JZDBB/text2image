@@ -4,7 +4,6 @@ from vgg import Vgg16,Vgg16_ori
 import numpy as np
 import math
 from miscc.config import cfg
-import miscc.pytorch_msssim as pytorch_msssim
 from GlobalAttention import func_attention
 
 

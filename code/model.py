@@ -347,6 +347,18 @@ class Upblock64(nn.Module):
         self.upsample3 = upBlock(ngf // 4, ngf // 8)
         self.upsample4 = upBlock(ngf // 8, ngf // 16)
 
+    def forward(self, x):
+        # state size ngf/3 x 8 x 8
+        x = self.upsample1(x)
+        # state size ngf/4 x 16 x 16
+        x = self.upsample2(x)
+        # state size ngf/8 x 32 x 32
+        x = self.upsample3(x)
+        # state size ngf/16 x 64 x 64
+        x = self.upsample4(x)
+        return x
+
+
 class INIT_G_3MODE(nn.Module):
     def __init__(self, ngf, ncf):
         super(INIT_G_3MODE, self).__init__()
@@ -392,8 +404,8 @@ class INIT_G_3MODE(nn.Module):
         mask = mask.view(-1, self.gf_dim, 4, 4)
 
         fore = self.Upblock_fore(fore)
-        back = self.Upblock_fore(back)
-        mask = self.Upblock_fore(mask)
+        back = self.Upblock_back(back)
+        mask = self.Upblock_mask(mask)
 
         return fore, back, mask
 
@@ -553,8 +565,8 @@ class G_NET(nn.Module):
         c_code, mu, logvar = self.ca_net(sent_emb)
 
         if cfg.TREE.BRANCH_NUM > 0:
-            fore, back, mask = self.h_net1(z_code, c_code)
-            fake_img1, h_code1, mask = self.img_net1(fore, back, mask)
+            fore, back, mask_f = self.h_net1(z_code, c_code)
+            fake_img1, h_code1, mask_img = self.img_net1(fore, back, mask_f)
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = \
@@ -571,7 +583,7 @@ class G_NET(nn.Module):
             if att2 is not None:
                 att_maps.append(att2)
 
-        return fake_imgs, mask, att_maps, mu, logvar
+        return fake_imgs, mask_img, att_maps, mu, logvar
 
 class G_DCGAN(nn.Module):
     def __init__(self):
@@ -714,7 +726,7 @@ class D_MASK(nn.Module):
         super(D_MASK, self).__init__()
         ndf = cfg.GAN.DF_DIM
         nef = cfg.TEXT.EMBEDDING_DIM
-        self.img_code_s16 = encode_image_by_16times(ndf)
+        self.img_code_s16 = encode_mask_by_16times(ndf)
         if b_jcu:
             self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, bcondition=False)
         else:

@@ -261,8 +261,7 @@ class condGANTrainer(object):
     def train(self):
         self.writer = SummaryWriter(self.log_dir)
         text_encoder, image_encoder, netG, netsD, mask_D, start_epoch = self.build_models()
-        avg_param_G = copy_G_params(netG)
-        self.optimizerG, self.optimizersD, self.optimizerM = self.define_optimizers(netG, netsD, mask_D)
+
         if cfg.TRAIN.NET_G != '':
             netG, netsD, mask_D, start_epoch = self.load_model(netG, netsD, mask_D)
         if cfg.CUDA:
@@ -272,6 +271,8 @@ class condGANTrainer(object):
             mask_D.cuda()
             for i in range(len(netsD)):
                 netsD[i].cuda()
+        self.optimizerG, self.optimizersD, self.optimizerM = self.define_optimizers(netG, netsD, mask_D)
+        avg_param_G = copy_G_params(netG)
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
         batch_size = self.batch_size
@@ -333,7 +334,7 @@ class condGANTrainer(object):
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
 
                 mask_D.zero_grad()
-                err_mask = mask_loss(mask_D, masks, mask_imgs,
+                err_mask = mask_loss(mask_D, masks[0], mask_imgs,
                                               sent_emb, real_labels, fake_labels)
                 err_mask.backward()
                 self.optimizerM.step()
@@ -383,7 +384,7 @@ class condGANTrainer(object):
                     # self.writer.add_scalar("watch/p_real", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/p_fake", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
-                    self.writer.add_image('mask_r', masks[0], gen_iterations)
+                    self.writer.add_image('mask_r', masks[0][0], gen_iterations)
                     self.writer.add_image('mask_f', mask_imgs[1], gen_iterations)
                     self.writer.add_image('fake1', fake_imgs[0][0], gen_iterations)
                     self.writer.add_image('fake2', fake_imgs[1][0], gen_iterations)

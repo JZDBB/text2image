@@ -39,10 +39,13 @@ def prepare_data(data):
             real_imgs.append(Variable(imgs[i]).cuda())
         else:
             real_imgs.append(Variable(imgs[i]))
-    if cfg.CUDA:
-        masks.append(Variable(masks).cuda())
-    else:
-        masks.append(Variable(masks))
+    mask_image = []
+    for i in range(len(masks)):
+        masks[i] = masks[i][sorted_cap_indices]
+        if cfg.CUDA:
+            mask_image.append(Variable(masks[i]).cuda())
+        else:
+            mask_image.append(Variable(masks[i]))
 
     captions = captions[sorted_cap_indices].squeeze()
     class_ids = class_ids[sorted_cap_indices].numpy()
@@ -55,7 +58,7 @@ def prepare_data(data):
     else:
         captions = Variable(captions)
         sorted_cap_lens = Variable(sorted_cap_lens)
-    return [real_imgs, masks, captions, sorted_cap_lens,
+    return [real_imgs, mask_image, captions, sorted_cap_lens,
             class_ids, keys]
 
 
@@ -93,10 +96,15 @@ def get_imgs(img_path, imsize, bbox=None,
                     re_img = img
                 ret.append(normalize(re_img))
     else:
-        re_img = transforms.Scale(64)(img)
-        re_img = np.asarray(re_img)
-        re_img = (re_img / 128.0 - 1.).astype(np.float32)
-        ret.append(normalize(re_img))
+        for i in range(cfg.TREE.BRANCH_NUM):
+            # print(imsize[i])
+            if i < (cfg.TREE.BRANCH_NUM - 1):
+                re_img = transforms.Scale(imsize[i])(img)
+            else:
+                re_img = img
+            re_img = np.asarray(re_img)
+            re_img = (re_img / 128.0 - 1.).astype(np.float32)
+            ret.append(normalize(re_img))
 
     return ret
 
@@ -104,7 +112,7 @@ def get_imgs(img_path, imsize, bbox=None,
 class TextDataset(data.Dataset):
     def __init__(self, data_dir, split='train',
                  base_size=64,
-                 transform=None, target_transform=None, name="images"):
+                 transform=None, target_transform=None):
         self.transform = transform
         self.norm = transforms.Compose([
             transforms.ToTensor(),
@@ -113,7 +121,6 @@ class TextDataset(data.Dataset):
             transforms.ToTensor()])
         self.target_transform = target_transform
         self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
-        self.name = name
         self.imsize = []
         for i in range(cfg.TREE.BRANCH_NUM):
             self.imsize.append(base_size)
@@ -315,8 +322,8 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
         #
         #img_name = '%s/images/%s.jpg' % (data_dir, key.split('/')[-1])#gai
-        img_name = '%s/%s/%s.jpg' % (data_dir, self.name, key)
-        mask_name = '%s/%s/%s.png' % (data_dir, self.name, key)
+        img_name = '%s/%s/%s.jpg' % (data_dir, "images", key)
+        mask_name = '%s/%s/%s.png' % (data_dir, "binary", key)
         imgs = get_imgs(img_name, self.imsize,
                         bbox, self.transform, normalize=self.norm, data="images")
 
