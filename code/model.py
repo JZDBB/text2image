@@ -309,37 +309,6 @@ class upfeature(nn.Module):
 
 
 # ############## G networks ###################
-class CA_NET(nn.Module):
-    # some code is modified from vae examples
-    # (https://github.com/pytorch/examples/blob/master/vae/main.py)
-    def __init__(self):
-        super(CA_NET, self).__init__()
-        self.t_dim = cfg.TEXT.EMBEDDING_DIM
-        self.c_dim = cfg.GAN.CONDITION_DIM
-        self.fc = nn.Linear(self.t_dim, self.c_dim * 4, bias=True)
-        self.relu = GLU()
-
-    def encode(self, text_embedding):
-        x = self.relu(self.fc(text_embedding))
-        mu = x[:, :self.c_dim]
-        logvar = x[:, self.c_dim:]
-        return mu, logvar
-
-    def reparametrize(self, mu, logvar):
-        std = logvar.mul(0.5).exp_()
-        if cfg.CUDA:
-            eps = torch.cuda.FloatTensor(std.size()).normal_()
-        else:
-            eps = torch.FloatTensor(std.size()).normal_()
-        eps = Variable(eps)
-        return eps.mul(std).add_(mu)
-
-    def forward(self, text_embedding):
-        mu, logvar = self.encode(text_embedding)
-        c_code = self.reparametrize(mu, logvar)
-        return c_code, mu, logvar
-
-
 class INIT_STAGE_G(nn.Module):
     def __init__(self, ngf, ncf):
         super(INIT_STAGE_G, self).__init__()
@@ -399,19 +368,9 @@ class NEXT_STAGE_G(nn.Module):
 
     def define_module(self):
         ngf = self.gf_dim
-        # self.att = ATT_NET(ngf, self.ef_dim)
-        self.att = MCA()
+        self.att = ATT_NET(ngf, self.ef_dim)
         self.residual = self._make_layer(ResBlock, ngf * 2)
         self.upsample = upBlock(ngf * 2, ngf)
-        self.re = Regin(ngf, ngf*4)
-        self.lstm = nn.LSTM(256, 128, num_layers=1, batch_first=True)
-        self.deconv = upfeature(ngf*4, ngf//2)
-
-    def make_mask(self, feature):
-        return (torch.sum(
-            torch.abs(feature),
-            dim=-1
-        ) == 0).unsqueeze(1).unsqueeze(2)
 
     def forward(self, h_code, c_code, word_embs, mask):
         """
@@ -420,124 +379,31 @@ class NEXT_STAGE_G(nn.Module):
             c_code1: batch x idf x queryL
             att1: batch x sourceL x queryL
         """
-        # self.att.applyMask(mask)
-        # c_code, att = self.att(h_code, word_embs)
-        # h_c_code = torch.cat((h_code, c_code), 1)
-        # MCA
-        # print("hshape", h_code.shape)
-        if h_code.shape[2] == 64:
-            x = self.re(h_code, self.gf_dim*4)
-            x_mask = self.make_mask(x)
-            y = word_embs.transpose(1, 2)
-            y_mask = self.make_mask(y)
-            y, _ = self.lstm(y)
-            att, _ = self.att(x, y, x_mask, y_mask)
-            att = self.deconv(att, self.gf_dim*4)
-            h_c_code = torch.cat((h_code, att), 1)
-
-        else:
-            ## !!!
-            h_c_code = torch.cat((h_code, h_code), 1)
+        self.att.applyMask(mask)
+        c_code, att = self.att(h_code, word_embs)
+        h_c_code = torch.cat((h_code, c_code), 1)
         out_code = self.residual(h_c_code)
+
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
-        # b, w, h, c = out_code.size()
 
-        return out_code#, att
+        return out_code, att
 
-class GET_INIT_IMAGE_G(nn.Module):
-    def __init__(self, ngf):
-        super(GET_INIT_IMAGE_G, self).__init__()
-        self.gf_dim = ngf
-        self.img = nn.Sequential(
-            conv3x3(ngf, 3)
-            # nn.Tanh()
-        )
-        self.tanh = nn.Tanh()
-        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-
-    def forward(self, h_code, img=None):
-        out_img = self.img(h_code)
-        # out_img += self.Up(org_img)
-        # out_img = self.tanh(out_img)
-        return out_img
 
 class GET_IMAGE_G(nn.Module):
     def __init__(self, ngf):
         super(GET_IMAGE_G, self).__init__()
         self.gf_dim = ngf
         self.img = nn.Sequential(
-            conv3x3(ngf, 3)
-            # nn.Tanh()
+            conv3x3(ngf, 3),
+            nn.Tanh()
         )
-        self.tanh = nn.Tanh()
-        self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
 
-    def forward(self, h_code, img):
+    def forward(self, h_code):
         out_img = self.img(h_code)
-        # out_img = self.tanh(out_img)
-
-        if img is not None:
-            img = self.upsample(img)
-            out_img = out_img + img
         return out_img
 
-
 class G_NET(nn.Module):
-    def __init__(self):
-        super(G_NET, self).__init__()
-        ngf = cfg.GAN.GF_DIM
-        nef = cfg.TEXT.EMBEDDING_DIM
-        ncf = cfg.GAN.CONDITION_DIM
-        self.ca_net = CA_NET()
-        self.tanh = nn.Tanh()
-
-        if cfg.TREE.BRANCH_NUM > 0:
-            self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
-            self.img_net1 = GET_INIT_IMAGE_G(ngf)
-        # gf x 64 x 64
-        if cfg.TREE.BRANCH_NUM > 1:
-            self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf)
-            self.img_net2 = GET_IMAGE_G(ngf)
-        if cfg.TREE.BRANCH_NUM > 2:
-            self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf)
-            self.img_net3 = GET_IMAGE_G(ngf)
-
-    def forward(self, z_code, sent_emb, word_embs, mask):
-        """
-            :param z_code: batch x cfg.GAN.Z_DIM
-            :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
-            :param word_embs: batch x cdf x seq_len
-            :param mask: batch x seq_len
-            :return:
-        """
-        fake_imgs = []
-        att_maps = []
-        c_code, mu, logvar = self.ca_net(sent_emb)
-
-        if cfg.TREE.BRANCH_NUM > 0:
-            h_code1 = self.h_net1(z_code, c_code)
-            fake_img1 = self.img_net1(h_code1)
-            fake_img1_out = self.tanh(fake_img1)
-            fake_imgs.append(fake_img1_out)
-        if cfg.TREE.BRANCH_NUM > 1:
-            h_code2 = self.h_net2(h_code1, c_code, word_embs, mask)
-            fake_img2 = self.img_net2(h_code2, fake_img1)
-            fake_img2_out = self.tanh(fake_img2)
-            fake_imgs.append(fake_img2_out)
-            # if att1 is not None:
-            #     att_maps.append(att1)
-        if cfg.TREE.BRANCH_NUM > 2:
-            h_code3 = self.h_net3(h_code2, c_code, word_embs, mask)
-            fake_img3 = self.img_net3(h_code3, fake_img2)
-            fake_img3_out = self.tanh(fake_img3)
-            fake_imgs.append(fake_img3_out)
-            # if att2 is not None:
-            #     att_maps.append(att2)
-
-        return fake_imgs, att_maps, mu, logvar
-
-class G_NET_FT(nn.Module):
     def __init__(self):
         super(G_NET, self).__init__()
         ngf = cfg.GAN.GF_DIM
@@ -651,6 +517,7 @@ def downBlock(in_planes, out_planes):
     )
     return block
 
+# 64 x 64 mask
 def encode_mask_by_16times(ndf):
     encode_img = nn.Sequential(
         # --> state size. ndf x in_size/2 x in_size/2
