@@ -9,8 +9,8 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
-from mca import MCA_ED as MCA
-from mca import Cfgs as C
+# from mca import MCA_ED as MCA
+# from mca import Cfgs as C
 
 
 class GLU(nn.Module):
@@ -339,6 +339,93 @@ class CA_NET(nn.Module):
         c_code = self.reparametrize(mu, logvar)
         return c_code, mu, logvar
 
+class Upblock64(nn.Module):
+    def __init__(self, ngf):
+        super(Upblock64, self).__init__()
+        self.upsample1 = upBlock(ngf, ngf // 2)
+        self.upsample2 = upBlock(ngf // 2, ngf // 4)
+        self.upsample3 = upBlock(ngf // 4, ngf // 8)
+        self.upsample4 = upBlock(ngf // 8, ngf // 16)
+
+class INIT_G_3MODE(nn.Module):
+    def __init__(self, ngf, ncf):
+        super(INIT_G_3MODE, self).__init__()
+        self.gf_dim = ngf
+        self.in_dim = cfg.GAN.Z_DIM + ncf  # cfg.TEXT.EMBEDDING_DIM
+
+        self.define_module()
+
+    def define_module(self):
+        nz, ngf = self.in_dim, self.gf_dim
+        self.fc_fore = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+        self.fc_back = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+        self.fc_mask = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+
+        self.Upblock_fore = Upblock64(ngf)
+        self.Upblock_back = Upblock64(ngf)
+        self.Upblock_mask = Upblock64(ngf)
+
+
+    def forward(self, z_code, c_code):
+        """
+        :param z_code: batch x cfg.GAN.Z_DIM
+        :param c_code: batch x cfg.TEXT.EMBEDDING_DIM
+        :return: batch x ngf/16 x 64 x 64
+        """
+        c_z_code = torch.cat((c_code, z_code), 1)
+        # state size ngf x 4 x 4
+        fore = self.fc_fore(c_z_code)
+        back = self.fc_back(c_z_code)
+        mask = self.fc_mask(c_z_code)
+
+        fore = fore.view(-1, self.gf_dim, 4, 4)
+        back = back.view(-1, self.gf_dim, 4, 4)
+        mask = mask.view(-1, self.gf_dim, 4, 4)
+
+        fore = self.Upblock_fore(fore)
+        back = self.Upblock_fore(back)
+        mask = self.Upblock_fore(mask)
+
+        return fore, back, mask
+
+class GET_G_3IMAGE(nn.Module):
+    def __init__(self, ngf):
+        super(GET_G_3IMAGE, self).__init__()
+        self.gf_dim = ngf
+        self.get_fore = nn.Sequential(
+            conv3x3(ngf, 3),
+            nn.Tanh()
+        )
+        self.get_back = nn.Sequential(
+            conv3x3(ngf, 3),
+            nn.Tanh()
+        )
+        self.get_mask = nn.Sequential(
+            conv3x3(ngf, 1),
+            nn.Tanh()
+        )
+
+    def forward(self, fore, back, mask):
+        mask_image = self.get_mask(mask)
+        fore_image = self.get_fore(fore)
+        back_image = self.get_back(back)
+
+        code = torch.mul(fore, mask_image) + \
+               torch.mul(back, torch.ones_like(mask_image) - mask_image)
+        out_img = torch.mul(fore_image, mask_image) + \
+                  torch.mul(back_image, torch.ones_like(mask_image) - mask_image)
+
+        return out_img, code, mask_image
+
 
 class INIT_STAGE_G(nn.Module):
     def __init__(self, ngf, ncf):
@@ -443,8 +530,8 @@ class G_NET(nn.Module):
         self.ca_net = CA_NET()
 
         if cfg.TREE.BRANCH_NUM > 0:
-            self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
-            self.img_net1 = GET_IMAGE_G(ngf)
+            self.h_net1 = INIT_G_3MODE(ngf * 16, ncf)
+            self.img_net1 = GET_G_3IMAGE(ngf)
         # gf x 64 x 64
         if cfg.TREE.BRANCH_NUM > 1:
             self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf)
@@ -466,8 +553,8 @@ class G_NET(nn.Module):
         c_code, mu, logvar = self.ca_net(sent_emb)
 
         if cfg.TREE.BRANCH_NUM > 0:
-            h_code1 = self.h_net1(z_code, c_code)
-            fake_img1 = self.img_net1(h_code1)
+            fore, back, mask = self.h_net1(z_code, c_code)
+            fake_img1, h_code1, mask = self.img_net1(fore, back, mask)
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = \
@@ -484,7 +571,7 @@ class G_NET(nn.Module):
             if att2 is not None:
                 att_maps.append(att2)
 
-        return fake_imgs, att_maps, mu, logvar
+        return fake_imgs, mask, att_maps, mu, logvar
 
 class G_DCGAN(nn.Module):
     def __init__(self):

@@ -26,7 +26,7 @@ else:
 
 
 def prepare_data(data):
-    imgs, captions, captions_lens, class_ids, keys = data
+    imgs, masks, captions, captions_lens, class_ids, keys = data
 
     # sort data by the length in a decreasing order
     sorted_cap_lens, sorted_cap_indices = \
@@ -39,6 +39,10 @@ def prepare_data(data):
             real_imgs.append(Variable(imgs[i]).cuda())
         else:
             real_imgs.append(Variable(imgs[i]))
+    if cfg.CUDA:
+        masks.append(Variable(masks).cuda())
+    else:
+        masks.append(Variable(masks))
 
     captions = captions[sorted_cap_indices].squeeze()
     class_ids = class_ids[sorted_cap_indices].numpy()
@@ -51,13 +55,16 @@ def prepare_data(data):
     else:
         captions = Variable(captions)
         sorted_cap_lens = Variable(sorted_cap_lens)
-    return [real_imgs, captions, sorted_cap_lens,
+    return [real_imgs, masks, captions, sorted_cap_lens,
             class_ids, keys]
 
 
 def get_imgs(img_path, imsize, bbox=None,
              transform=None, normalize=None, data=None):
-    img = Image.open(img_path).convert('L')
+    if data == "images":
+        img = Image.open(img_path).convert('RGB')
+    else:
+        img = Image.open(img_path).convert('L')
 
     width, height = img.size
     if bbox is not None:
@@ -86,15 +93,10 @@ def get_imgs(img_path, imsize, bbox=None,
                     re_img = img
                 ret.append(normalize(re_img))
     else:
-        for i in range(cfg.TREE.BRANCH_NUM):
-            # print(imsize[i])
-            if i < (cfg.TREE.BRANCH_NUM - 1):
-                re_img = transforms.Scale(imsize[i])(img)
-            else:
-                re_img = img
-            re_img = np.asarray(re_img)
-            re_img = (re_img / 128.0 - 1.).astype(np.float32)
-            ret.append(normalize(re_img))
+        re_img = transforms.Scale(64)(img)
+        re_img = np.asarray(re_img)
+        re_img = (re_img / 128.0 - 1.).astype(np.float32)
+        ret.append(normalize(re_img))
 
     return ret
 
@@ -104,13 +106,11 @@ class TextDataset(data.Dataset):
                  base_size=64,
                  transform=None, target_transform=None, name="images"):
         self.transform = transform
-        if name == 'images':
-            self.norm = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        else:
-            self.norm = transforms.Compose([
-                transforms.ToTensor()])
+        self.norm = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.norm_mask = transforms.Compose([
+            transforms.ToTensor()])
         self.target_transform = target_transform
         self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
         self.name = name
@@ -315,18 +315,18 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
         #
         #img_name = '%s/images/%s.jpg' % (data_dir, key.split('/')[-1])#gai
-        if self.name == 'images':
-            img_name = '%s/%s/%s.jpg' % (data_dir, self.name, key)
-
-        else:
-            img_name = '%s/%s/%s.png' % (data_dir, self.name, key)
+        img_name = '%s/%s/%s.jpg' % (data_dir, self.name, key)
+        mask_name = '%s/%s/%s.png' % (data_dir, self.name, key)
         imgs = get_imgs(img_name, self.imsize,
-                        bbox, self.transform, normalize=self.norm, data=self.name)
+                        bbox, self.transform, normalize=self.norm, data="images")
+
+        masks = get_imgs(mask_name, self.imsize,
+                        bbox, self.transform, normalize=self.norm_mask, data='mask')
         # random select a sentence
         sent_ix = random.randint(0, self.embeddings_num)
         new_sent_ix = index * self.embeddings_num + sent_ix
         caps, cap_len = self.get_caption(new_sent_ix)
-        return imgs, caps, cap_len, cls_id, key
+        return imgs, masks, caps, cap_len, cls_id, key
 
     def __len__(self):
         return len(self.filenames)
