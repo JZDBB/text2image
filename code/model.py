@@ -413,11 +413,7 @@ class GET_G_3IMAGE(nn.Module):
     def __init__(self, ngf):
         super(GET_G_3IMAGE, self).__init__()
         self.gf_dim = ngf
-        self.get_fore = nn.Sequential(
-            conv3x3(ngf, 3),
-            nn.Tanh()
-        )
-        self.get_back = nn.Sequential(
+        self.get_img = nn.Sequential(
             conv3x3(ngf, 3),
             nn.Tanh()
         )
@@ -428,13 +424,11 @@ class GET_G_3IMAGE(nn.Module):
 
     def forward(self, fore, back, mask):
         mask_image = self.get_mask(mask)
-        fore_image = self.get_fore(fore)
-        back_image = self.get_back(back)
 
-        code = torch.mul(fore, mask_image) + \
-               torch.mul(back, torch.ones_like(mask_image) - mask_image)
-        out_img = torch.mul(fore_image, mask_image) + \
-                  torch.mul(back_image, torch.ones_like(mask_image) - mask_image)
+
+        code = torch.mul(fore, (1. + mask_image)/2.) + \
+               torch.mul(back, (1. - mask_image)/2.)
+        out_img = self.get_img(code)
 
         return out_img, code, mask_image
 

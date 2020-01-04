@@ -24,8 +24,6 @@ import time
 import numpy as np
 import sys
 from tensorboardX import SummaryWriter
-from utils.saver import Saver
-from utils import learning_rates
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -217,7 +215,7 @@ class condGANTrainer(object):
                          image_encoder, captions, cap_lens,
                          gen_iterations, name='current'):
         # Save images
-        fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
+        fake_imgs, _, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
         for i in range(len(attention_maps)):
             if len(fake_imgs) > 1:
                 img = fake_imgs[i + 1].detach().cpu()
@@ -514,7 +512,7 @@ class condGANTrainer(object):
                     # (2) Generate fake images
                     ######################################################
                     noise.data.normal_(0, 1)
-                    fake_imgs, _, _, _ = netG(noise, sent_emb, words_embs, mask)
+                    fake_imgs, _, _, _, _ = netG(noise, sent_emb, words_embs, mask)
                     for j in range(batch_size):
                         s_tmp = '%s/single/%s' % (save_dir, keys[j])
                         folder = s_tmp[:s_tmp.rfind('/')]
@@ -570,7 +568,7 @@ class condGANTrainer(object):
         state_dict = \
             torch.load(model_dir, map_location=lambda storage, loc: storage)
         # state_dict = torch.load(cfg.TRAIN.NET_G)
-        netG.load_state_dict(state_dict)
+        netG.load_state_dict(state_dict['model'])
         print('Load G from: ', model_dir)
 
         # the path to save generated images
@@ -603,7 +601,7 @@ class condGANTrainer(object):
                 # (2) Generate fake images
                 ######################################################
                 noise.data.normal_(0, 1)
-                fake_imgs, _, _, _ = netG(noise, sent_emb, words_embs, mask)
+                fake_imgs, _, _, _, _ = netG(noise, sent_emb, words_embs, mask)
                 for j in range(batch_size):
                     s_tmp = '%s/multiple/%s' % (save_dir, keys[j])
                     folder = s_tmp[:s_tmp.rfind('/')]
@@ -675,7 +673,7 @@ class condGANTrainer(object):
                     # (2) Generate fake images
                     ######################################################
                     noise.data.normal_(0, 1)
-                    fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
+                    fake_imgs, _, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
                     # G attention
                     cap_lens_np = cap_lens.cpu().data.numpy()
                     for j in range(batch_size):
