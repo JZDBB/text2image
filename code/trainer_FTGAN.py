@@ -11,7 +11,7 @@ from PIL import Image
 
 from miscc.config import cfg
 from miscc.utils import mkdir_p
-from miscc.utils import build_super_images, build_super_images2
+from miscc.utils import build_super_images, build_super_images2, image_comp
 from miscc.utils import weights_init, load_params, copy_G_params
 from model import G_DCGAN, G_NET
 from datasets import prepare_data
@@ -180,6 +180,20 @@ class condGANTrainer(object):
             match_labels = match_labels.cuda()
 
         return real_labels, fake_labels, match_labels
+
+    def compose_image(self, mask_r, mask_f, real_images, fake_images):
+        reals = []
+        fakes = []
+        size = [64, 128, 256]
+        real_mask = image_comp(mask_r, 64, self.batch_size, 1)
+        fake_mask = image_comp(mask_f, 64, self.batch_size, 1)
+        for i in range(real_images):
+            real = image_comp(real_images[i], size[i], self.batch_size, 3)
+            reals.append(real)
+            fake = image_comp(fake_images[i], size[i], self.batch_size, 3)
+            fakes.append(fake)
+
+        return real_mask, fake_mask, reals, fakes
 
     def save_model(self, netG, avg_param_G, netsD, mask_D, epoch):
         backup_para = copy_G_params(netG)
@@ -382,14 +396,15 @@ class condGANTrainer(object):
                     # self.writer.add_scalar("watch/p_real", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/p_fake", errG_total, gen_iterations)
                     # self.writer.add_scalar("watch/learning_rate", optimizerG['lr'], gen_iterations)
-                    self.writer.add_image('mask_r', masks[0][0], gen_iterations)
-                    self.writer.add_image('mask_f', mask_imgs[1], gen_iterations)
-                    self.writer.add_image('fake1', fake_imgs[0][0], gen_iterations)
-                    self.writer.add_image('fake2', fake_imgs[1][0], gen_iterations)
-                    self.writer.add_image('fake3', fake_imgs[2][0], gen_iterations)
-                    self.writer.add_image('real1', imgs[0][0], gen_iterations)
-                    self.writer.add_image('real2', imgs[1][0], gen_iterations)
-                    self.writer.add_image('real3', imgs[2][0], gen_iterations)
+                    mask_r, mask_f, reals, fakes = self.compose_image(masks, mask_imgs, imgs, fake_imgs)
+                    self.writer.add_image('mask_r', mask_r, gen_iterations)
+                    self.writer.add_image('mask_f', mask_f, gen_iterations)
+                    self.writer.add_image('fake1', fakes[0], gen_iterations)
+                    self.writer.add_image('fake2', fakes[1], gen_iterations)
+                    self.writer.add_image('fake3', fakes[2], gen_iterations)
+                    self.writer.add_image('real1', reals[0], gen_iterations)
+                    self.writer.add_image('real2', reals[1], gen_iterations)
+                    self.writer.add_image('real3', reals[2], gen_iterations)
 
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)

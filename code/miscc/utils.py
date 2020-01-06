@@ -317,12 +317,12 @@ def mkdir_p(path):
 ## debug
 def image_comp(image, img_size, batch_size, dim):
 
-    row = int(math.sqrt(batch_size))
-    col = math.ceil(batch_size // row)
-    result = np.ndarray(shape=(dim, img_size * col, img_size * row), dtype=np.float32)
+    col = int(math.sqrt(batch_size))
+    row = math.ceil(batch_size // col)
+    result = np.ndarray(shape=(dim, img_size * col, img_size * row), dtype=np.uint8)
     for i in range(batch_size):
         im = image[i, :].cpu().data.numpy()
-        x = i // col
-        y = i % row
+        x = i % col
+        y = i // col
         result[:, x * img_size : x * img_size + img_size, y * img_size : y * img_size + img_size] = im
     return result

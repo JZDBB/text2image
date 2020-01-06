@@ -34,14 +34,14 @@ mask = cv2.imread("1.png")
 
 
 # image compose
-imgs = []
-img = cv2.resize(img, (256, 256))
-img = np.transpose(img, (2,0,1))
-imgs.append(img)
-mask = cv2.resize(mask, (256, 256))
-mask = np.transpose(mask, (2,0,1))
-imgs.append(mask)
-y = image_comp(imgs, img_size=256, batch_size=2, dim=3)
+# imgs = []
+# img = cv2.resize(img, (256, 256))
+# img = np.transpose(img, (2,0,1))
+# imgs.append(img)
+# mask = cv2.resize(mask, (256, 256))
+# mask = np.transpose(mask, (2,0,1))
+# imgs.append(mask)
+# y = image_comp(imgs, img_size=256, batch_size=2, dim=3)
 
 
 # image summary
