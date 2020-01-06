@@ -427,6 +427,7 @@ class condGANTrainer(object):
                 self.save_model(netG, avg_param_G, netsD, mask_D, epoch)
 
         self.save_model(netG, avg_param_G, netsD, mask_D, self.max_epoch)
+        self.writer.close()
 
     def save_singleimages(self, images, filenames, save_dir,
                           split_dir, sentenceID=0):
