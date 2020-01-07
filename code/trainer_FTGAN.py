@@ -202,14 +202,14 @@ class condGANTrainer(object):
         statu = {
             'epoch': epoch,
             'model': netG.state_dict(),
-            'optimizer': self.optimizerG
+            'optimizer': self.optimizerG.state_dict()
         }
         torch.save(statu, '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
         load_params(netG, backup_para)
         statu = {
             'epoch': epoch,
             'model': mask_D.state_dict(),
-            'optimizer': self.optimizerM
+            'optimizer': self.optimizerM.state_dict()
         }
         torch.save(statu, '%s/netD_mask.pth' % (self.model_dir))
         for i in range(len(netsD)):
