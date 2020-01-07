@@ -26,7 +26,7 @@ else:
 
 
 def prepare_data(data):
-    imgs, captions, captions_lens, class_ids, keys = data
+    imgs, masks, captions, captions_lens, class_ids, keys = data
 
     # sort data by the length in a decreasing order
     sorted_cap_lens, sorted_cap_indices = \
@@ -39,6 +39,13 @@ def prepare_data(data):
             real_imgs.append(Variable(imgs[i]).cuda())
         else:
             real_imgs.append(Variable(imgs[i]))
+    mask_image = []
+    for i in range(len(masks)):
+        masks[i] = masks[i][sorted_cap_indices]
+        if cfg.CUDA:
+            mask_image.append(Variable(masks[i]).cuda())
+        else:
+            mask_image.append(Variable(masks[i]))
 
     captions = captions[sorted_cap_indices].squeeze()
     class_ids = class_ids[sorted_cap_indices].numpy()
@@ -52,13 +59,18 @@ def prepare_data(data):
         captions = Variable(captions)
         sorted_cap_lens = Variable(sorted_cap_lens)
 
-    return [real_imgs, captions, sorted_cap_lens,
+
+    return [real_imgs, mask_image, captions, sorted_cap_lens,
             class_ids, keys]
 
 
 def get_imgs(img_path, imsize, bbox=None,
-             transform=None, normalize=None):
-    img = Image.open(img_path).convert('RGB')
+             transform=None, normalize=None, data=None):
+    if data == "images":
+        img = Image.open(img_path).convert('RGB')
+    else:
+        img = Image.open(img_path).convert('L')
+
     width, height = img.size
     if bbox is not None:
         r = int(np.maximum(bbox[2], bbox[3]) * 0.75)
@@ -74,8 +86,17 @@ def get_imgs(img_path, imsize, bbox=None,
         img = transform(img)
 
     ret = []
-    if cfg.GAN.B_DCGAN:
-        ret = [normalize(img)]
+    if data == 'images':
+        if cfg.GAN.B_DCGAN:
+            ret = [normalize(img)]
+        else:
+            for i in range(cfg.TREE.BRANCH_NUM):
+                # print(imsize[i])
+                if i < (cfg.TREE.BRANCH_NUM - 1):
+                    re_img = transforms.Scale(imsize[i])(img)
+                else:
+                    re_img = img
+                ret.append(normalize(re_img))
     else:
         for i in range(cfg.TREE.BRANCH_NUM):
             # print(imsize[i])
@@ -83,6 +104,8 @@ def get_imgs(img_path, imsize, bbox=None,
                 re_img = transforms.Scale(imsize[i])(img)
             else:
                 re_img = img
+            re_img = np.asarray(re_img)
+            re_img = (re_img / 128.0 - 1.).astype(np.float32)
             ret.append(normalize(re_img))
 
     return ret
@@ -96,9 +119,10 @@ class TextDataset(data.Dataset):
         self.norm = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.norm_mask = transforms.Compose([
+            transforms.ToTensor()])
         self.target_transform = target_transform
         self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
-
         self.imsize = []
         for i in range(cfg.TREE.BRANCH_NUM):
             self.imsize.append(base_size)
@@ -133,7 +157,7 @@ class TextDataset(data.Dataset):
         #
         filename_bbox = {img_file[:-4]: [] for img_file in filenames}
         numImgs = len(filenames)
-        for i in xrange(0, numImgs):
+        for i in range(0, numImgs):
             # bbox = [x-left, y-top, width, height]
             bbox = df_bounding_boxes.iloc[i][1:].tolist()
 
@@ -298,15 +322,20 @@ class TextDataset(data.Dataset):
             bbox = None
             data_dir = self.data_dir
         #
-        img_name = '%s/images/%s.jpg' % (data_dir, key)
+
+        #img_name = '%s/images/%s.jpg' % (data_dir, key.split('/')[-1])#gai
+        img_name = '%s/%s/%s.jpg' % (data_dir, "images", key)
+        mask_name = '%s/%s/%s.png' % (data_dir, "binary", key)
         imgs = get_imgs(img_name, self.imsize,
-                        bbox, self.transform, normalize=self.norm)
+                        bbox, self.transform, normalize=self.norm, data="images")
+
+        masks = get_imgs(mask_name, self.imsize,
+                        bbox, self.transform, normalize=self.norm_mask, data='mask')
         # random select a sentence
         sent_ix = random.randint(0, self.embeddings_num)
         new_sent_ix = index * self.embeddings_num + sent_ix
         caps, cap_len = self.get_caption(new_sent_ix)
-        return imgs, caps, cap_len, cls_id, key
-
+        return imgs, masks, caps, cap_len, cls_id, key
 
     def __len__(self):
         return len(self.filenames)

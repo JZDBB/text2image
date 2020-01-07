@@ -13,6 +13,8 @@ from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 from GlobalAttention import GlobalAttention_text as ATT_NET_text
 from spectral import SpectralNorm
 from miscc.carafe import CARAFE
+# from mca import MCA_ED as MCA
+# from mca import Cfgs as C
 
 
 class GLU(nn.Module):
@@ -155,6 +157,7 @@ class RNN_ENCODER(nn.Module):
         else:
             sent_emb = hidden.transpose(0, 1).contiguous()
         sent_emb = sent_emb.view(-1, self.nhidden * self.num_directions)
+        # print(words_emb.shape, sent_emb.shape)
         return words_emb, sent_emb
 
 
@@ -265,6 +268,48 @@ class CNN_ENCODER(nn.Module):
             features = self.emb_features(features)
         return features, cnn_code
 
+class Regin(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(Regin, self).__init__()
+        self.conv = nn.Conv2d(in_ch, out_ch, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, stride=2, padding=1)
+        self.dieconv = nn.Conv2d(in_ch, out_ch, 3, stride=4, dilation=2, padding=2)
+        self.dieconv2 = nn.Conv2d(out_ch, out_ch, 3, stride=4, dilation=2, padding=2)
+
+    def forward(self, x, channel):
+        layer1 = self.conv(x)
+        layer1 = self.conv2(layer1)
+        layer1 = layer1.view(-1, channel, 256)
+        layer2 = self.dieconv(x)
+        layer2 = self.dieconv2(layer2)
+        # print(layer2.shape)
+        layer2 = layer2.view(-1, channel, 16)
+        out = torch.cat([layer1, layer2], 2)
+        out = out.transpose(1, 2)
+        return out
+
+class upfeature(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(upfeature, self).__init__()
+        self.conv = nn.ConvTranspose2d(in_ch, out_ch, 3, stride=2, output_padding=1, padding=1)
+        self.conv2 = nn.ConvTranspose2d(out_ch, out_ch, 3, stride=2, output_padding=1, padding=1)
+
+        self.dieconv = nn.ConvTranspose2d(in_ch, out_ch, 3, stride=4, dilation=2, output_padding=1, padding=1)
+        self.dieconv2 = nn.ConvTranspose2d(out_ch, out_ch, 3, stride=4, dilation=2, output_padding=1, padding=1)
+
+    def forward(self, x, channel):
+
+        layer1, layer2 = x[:, :256, :], x[:, 256:, :]
+        layer1 = layer1.view(-1, channel, 16, 16)
+        layer1 = self.conv(layer1)
+        layer1 = self.conv2(layer1)
+        layer2 = layer2.view(-1, channel, 4, 4)
+        layer2 = self.dieconv(layer2)
+        layer2 = self.dieconv2(layer2)
+        # print(layer2.shape, layer1.shape)
+        out = torch.cat([layer1, layer2], 1)
+        return out
+
 
 # ############## G networks ###################
 class CA_NET(nn.Module):
@@ -296,6 +341,99 @@ class CA_NET(nn.Module):
         mu, logvar = self.encode(text_embedding)
         c_code = self.reparametrize(mu, logvar)
         return c_code, mu, logvar
+
+class Upblock64(nn.Module):
+    def __init__(self, ngf):
+        super(Upblock64, self).__init__()
+        self.upsample1 = upBlock(ngf, ngf // 2)
+        self.upsample2 = upBlock(ngf // 2, ngf // 4)
+        self.upsample3 = upBlock(ngf // 4, ngf // 8)
+        self.upsample4 = upBlock(ngf // 8, ngf // 16)
+
+    def forward(self, x):
+        # state size ngf/3 x 8 x 8
+        x = self.upsample1(x)
+        # state size ngf/4 x 16 x 16
+        x = self.upsample2(x)
+        # state size ngf/8 x 32 x 32
+        x = self.upsample3(x)
+        # state size ngf/16 x 64 x 64
+        x = self.upsample4(x)
+        return x
+
+
+class INIT_G_3MODE(nn.Module):
+    def __init__(self, ngf, ncf):
+        super(INIT_G_3MODE, self).__init__()
+        self.gf_dim = ngf
+        self.in_dim = cfg.GAN.Z_DIM + ncf  # cfg.TEXT.EMBEDDING_DIM
+
+        self.define_module()
+
+    def define_module(self):
+        nz, ngf = self.in_dim, self.gf_dim
+        self.fc_fore = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+        self.fc_back = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+        self.fc_mask = nn.Sequential(
+            nn.Linear(nz, ngf * 4 * 4 * 2, bias=False),
+            nn.BatchNorm1d(ngf * 4 * 4 * 2),
+            GLU())
+
+        self.Upblock_fore = Upblock64(ngf)
+        self.Upblock_back = Upblock64(ngf)
+        self.Upblock_mask = Upblock64(ngf)
+
+
+    def forward(self, z_code, c_code):
+        """
+        :param z_code: batch x cfg.GAN.Z_DIM
+        :param c_code: batch x cfg.TEXT.EMBEDDING_DIM
+        :return: batch x ngf/16 x 64 x 64
+        """
+        c_z_code = torch.cat((c_code, z_code), 1)
+        # state size ngf x 4 x 4
+        fore = self.fc_fore(c_z_code)
+        back = self.fc_back(c_z_code)
+        mask = self.fc_mask(c_z_code)
+
+        fore = fore.view(-1, self.gf_dim, 4, 4)
+        back = back.view(-1, self.gf_dim, 4, 4)
+        mask = mask.view(-1, self.gf_dim, 4, 4)
+
+        fore = self.Upblock_fore(fore)
+        back = self.Upblock_back(back)
+        mask = self.Upblock_mask(mask)
+
+        return fore, back, mask
+
+class GET_G_3IMAGE(nn.Module):
+    def __init__(self, ngf):
+        super(GET_G_3IMAGE, self).__init__()
+        self.gf_dim = ngf
+        self.get_img = nn.Sequential(
+            conv3x3(ngf, 3),
+            nn.Tanh()
+        )
+        self.get_mask = nn.Sequential(
+            conv3x3(ngf, 1),
+            nn.Tanh()
+        )
+
+    def forward(self, fore, back, mask):
+        mask_image = self.get_mask(mask)
+
+
+        code = torch.mul(fore, (1. + mask_image)/2.) + \
+               torch.mul(back, (1. - mask_image)/2.)
+        out_img = self.get_img(code)
+
+        return out_img, code, mask_image
 
 
 class INIT_STAGE_G(nn.Module):
@@ -446,31 +584,40 @@ class NEXT_STAGE_G(nn.Module):
             att1: batch x sourceL x queryL
         """
         # Memory Writing
-        word_embs_T = torch.transpose(word_embs, 1, 2).contiguous()
-        h_code_avg = self.avg(h_code).detach()
-        h_code_avg = h_code_avg.squeeze(3)
-        h_code_avg_T = torch.transpose(h_code_avg, 1, 2).contiguous()
-        gate1 = torch.transpose(self.A(word_embs_T), 1, 2).contiguous()
-        gate2 = self.B(h_code_avg_T).repeat(1, 1, word_embs.size(2))
-        writing_gate = torch.sigmoid(gate1 + gate2)
-        h_code_avg = h_code_avg.repeat(1, 1, word_embs.size(2))
-        memory = self.M_w(word_embs) * writing_gate + self.M_r(h_code_avg) * (1 - writing_gate)
+        # word_embs_T = torch.transpose(word_embs, 1, 2).contiguous()
+        # h_code_avg = self.avg(h_code).detach()
+        # h_code_avg = h_code_avg.squeeze(3)
+        # h_code_avg_T = torch.transpose(h_code_avg, 1, 2).contiguous()
+        # gate1 = torch.transpose(self.A(word_embs_T), 1, 2).contiguous()
+        # gate2 = self.B(h_code_avg_T).repeat(1, 1, word_embs.size(2))
+        # writing_gate = torch.sigmoid(gate1 + gate2)
+        # h_code_avg = h_code_avg.repeat(1, 1, word_embs.size(2))
+        # memory = self.M_w(word_embs) * writing_gate + self.M_r(h_code_avg) * (1 - writing_gate)
+        #
+        # # Key Addressing and Value Reading
+        # key = self.key(memory)
+        # value = self.value(memory)
+        # self.memory_operation.applyMask(mask)
+        # memory_out, att = self.memory_operation(h_code, key, value)
+        #
+        # # Key Response
+        # response_gate = self.response_gate(torch.cat((h_code, memory_out), 1))
+        # h_code_new = h_code * (1 - response_gate) + response_gate * memory_out
+        # h_code_new = torch.cat((h_code_new, h_code_new), 1)
+        #
+        # out_code = self.residual(h_code_new)
+        # # state size ngf/2 x 2in_size x 2in_size
+        # out_code = self.upsample(out_code)
+        # out_code = self.conv(out_code)
 
-        # Key Addressing and Value Reading
-        key = self.key(memory)
-        value = self.value(memory)
-        self.memory_operation.applyMask(mask)
-        memory_out, att = self.memory_operation(h_code, key, value)
 
-        # Key Response
-        response_gate = self.response_gate(torch.cat((h_code, memory_out), 1))
-        h_code_new = h_code * (1 - response_gate) + response_gate * memory_out
-        h_code_new = torch.cat((h_code_new, h_code_new), 1)
+        self.att.applyMask(mask)
+        c_code, att = self.att(h_code, word_embs)
+        h_c_code = torch.cat((h_code, c_code), 1)
+        out_code = self.residual(h_c_code)
 
-        out_code = self.residual(h_code_new)
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
-        out_code = self.conv(out_code)
         return out_code, att
 
 
@@ -487,7 +634,6 @@ class GET_IMAGE_G(nn.Module):
         out_img = self.img(h_code)
         return out_img
 
-
 class G_NET(nn.Module):
     def __init__(self):
         super(G_NET, self).__init__()
@@ -497,8 +643,8 @@ class G_NET(nn.Module):
         self.ca_net = CA_NET()
 
         if cfg.TREE.BRANCH_NUM > 0:
-            self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
-            self.img_net1 = GET_IMAGE_G(ngf)
+            self.h_net1 = INIT_G_3MODE(ngf * 16, ncf)
+            self.img_net1 = GET_G_3IMAGE(ngf)
         # gf x 64 x 64
         if cfg.TREE.BRANCH_NUM > 1:
             self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf, 64)
@@ -520,8 +666,8 @@ class G_NET(nn.Module):
         c_code, mu, logvar = self.ca_net(sent_emb)
 
         if cfg.TREE.BRANCH_NUM > 0:
-            h_code1 = self.h_net1(z_code, c_code)
-            fake_img1 = self.img_net1(h_code1)
+            fore, back, mask_f = self.h_net1(z_code, c_code)
+            fake_img1, h_code1, mask_img = self.img_net1(fore, back, mask_f)
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = self.h_net2(h_code1, c_code, word_embs, mask, cap_lens)
@@ -535,7 +681,7 @@ class G_NET(nn.Module):
             fake_imgs.append(fake_img3)
             if att2 is not None:
                 att_maps.append(att2)
-        return fake_imgs, att_maps, mu, logvar
+        return fake_imgs, mask_img, att_maps, mu, logvar
 
 
 
@@ -599,6 +745,27 @@ def downBlock(in_planes, out_planes):
     )
     return block
 
+# 64 x 64 mask
+def encode_mask_by_16times(ndf):
+    encode_img = nn.Sequential(
+        # --> state size. ndf x in_size/2 x in_size/2
+        nn.Conv2d(1, ndf, 4, 2, 1, bias=False),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 2ndf x x in_size/4 x in_size/4
+        nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 2),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 4ndf x in_size/8 x in_size/8
+        nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 4),
+        nn.LeakyReLU(0.2, inplace=True),
+        # --> state size 8ndf x in_size/16 x in_size/16
+        nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+        nn.BatchNorm2d(ndf * 8),
+        nn.LeakyReLU(0.2, inplace=True)
+    )
+    return encode_img
+
 # Downsale the spatial size by a factor of 16
 def encode_image_by_16times(ndf):
     layers = []
@@ -640,6 +807,24 @@ class D_GET_LOGITS(nn.Module):
 
         output = self.outlogits(h_c_code)
         return output.view(-1)
+
+
+# For 64 x 64 masks
+class D_MASK(nn.Module):
+    def __init__(self, b_jcu=True):
+        super(D_MASK, self).__init__()
+        ndf = cfg.GAN.DF_DIM
+        nef = cfg.TEXT.EMBEDDING_DIM
+        self.img_code_s16 = encode_mask_by_16times(ndf)
+        if b_jcu:
+            self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, bcondition=False)
+        else:
+            self.UNCOND_DNET = None
+        self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
+
+    def forward(self, x_var):
+        x_code4 = self.img_code_s16(x_var)  # 4 x 4 x 8df
+        return x_code4
 
 
 # For 64 x 64 images
@@ -707,3 +892,4 @@ class D_NET256(nn.Module):
         x_code4 = self.img_code_s64_1(x_code4)
         x_code4 = self.img_code_s64_2(x_code4)
         return x_code4
+
