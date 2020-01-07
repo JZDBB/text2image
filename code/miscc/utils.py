@@ -321,8 +321,10 @@ def image_comp(image, img_size, batch_size, dim):
     row = math.ceil(batch_size // col)
     result = np.ndarray(shape=(dim, img_size * col, img_size * row), dtype=np.uint8)
     for i in range(batch_size):
-        im = image[i, :].cpu().data.numpy()
+        im = image[i].cpu().data.numpy()
+        im = (im + 1.) / 2.
         x = i % col
         y = i // col
-        result[:, x * img_size : x * img_size + img_size, y * img_size : y * img_size + img_size] = im
+        result[:, x * img_size : x * img_size + img_size, y * img_size : y * img_size + img_size] = im * 255.
+    # print(np.max(result), np.min(result))
     return result

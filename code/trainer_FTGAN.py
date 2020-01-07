@@ -36,7 +36,8 @@ class condGANTrainer(object):
             mkdir_p(self.image_dir)
             mkdir_p(self.log_dir)
 
-        torch.cuda.set_device(cfg.GPU_ID)
+        if cfg.CUDA:
+            torch.cuda.set_device(cfg.GPU_ID)
         cudnn.benchmark = True
 
         self.batch_size = cfg.TRAIN.BATCH_SIZE
@@ -185,9 +186,9 @@ class condGANTrainer(object):
         reals = []
         fakes = []
         size = [64, 128, 256]
-        real_mask = image_comp(mask_r, 64, self.batch_size, 1)
+        real_mask = image_comp(mask_r[0], 64, self.batch_size, 1)
         fake_mask = image_comp(mask_f, 64, self.batch_size, 1)
-        for i in range(real_images):
+        for i in range(len(real_images)):
             real = image_comp(real_images[i], size[i], self.batch_size, 3)
             reals.append(real)
             fake = image_comp(fake_images[i], size[i], self.batch_size, 3)

@@ -22,6 +22,7 @@ trans = transforms.ToTensor()
 norm = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 img = cv2.imread("1.jpg")
 mask = cv2.imread("1.png")
+print(np.max(img), np.min(img))
 
 # image test
 # img = trans(img)
@@ -57,5 +58,5 @@ writer = SummaryWriter("./logs")
 # img1[0] = np.arange(0, 10000).reshape(100, 100) / 10000
 # img1[1] = 1 - np.arange(0, 10000).reshape(100, 100) / 10000
 
-writer.add_image('image', y, 0)
+writer.add_image('image', img, 0)
 writer.close()
