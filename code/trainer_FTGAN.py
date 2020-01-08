@@ -527,7 +527,7 @@ class condGANTrainer(object):
         netG.cuda()
         netG.eval()
         #
-        text_encoder_dir = model_dir.replace("netG_epoch_", "netE")
+        text_encoder_dir = model_dir = cfg.TRAIN.NET_E
         text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = \
             torch.load(text_encoder_dir, map_location=lambda storage, loc: storage)
