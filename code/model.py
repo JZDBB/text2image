@@ -424,8 +424,6 @@ class GET_G_3IMAGE(nn.Module):
 
     def forward(self, fore, back, mask):
         mask_image = self.get_mask(mask)
-
-
         code = torch.mul(fore, (1. + mask_image)/2.) + \
                torch.mul(back, (1. - mask_image)/2.)
         out_img = self.get_img(code)
