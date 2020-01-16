@@ -318,8 +318,9 @@ def mkdir_p(path):
 def image_comp(image, img_size, batch_size, dim):
 
     col = int(math.sqrt(batch_size))
-    row = math.ceil(batch_size // col)
+    row = math.ceil(batch_size / col)
     result = np.ndarray(shape=(dim, img_size * col, img_size * row), dtype=np.uint8)
+    print(batch_size, col, row)
     for i in range(batch_size):
         im = image[i].cpu().data.numpy()
         im = (im + 1.) / 2.
