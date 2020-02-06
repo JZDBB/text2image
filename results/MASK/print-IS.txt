@@ -194,3 +194,95 @@ epoch 1260
 mean: 4.468768,  std: 0.041554 
 epoch 1270
 mean: 4.419653,  std: 0.045384 
+epoch 1280
+mean: 4.597565,  std: 0.043154
+epoch 1290
+mean: 4.516959,  std: 0.059504
+epoch 1300
+mean: 4.567119,  std: 0.041932
+epoch 1310
+mean: 4.667212,  std: 0.053169
+epoch 1320
+mean: 4.443675,  std: 0.064903
+epoch 1330
+mean: 4.481884,  std: 0.045848
+epoch 1340
+mean: 4.426385,  std: 0.031475
+epoch 1350
+mean: 4.189114,  std: 0.066423
+epoch 1360
+mean: 4.455417,  std: 0.056557
+epoch 1370
+mean: 4.444707,  std: 0.039600
+epoch 1380
+mean: 4.440729,  std: 0.035384
+epoch 1390
+mean: 4.411932,  std: 0.048141
+epoch 1400
+mean: 4.436248,  std: 0.045408
+epoch 1410
+mean: 4.593495,  std: 0.042261
+epoch 1420
+mean: 4.521352,  std: 0.059001
+epoch 1430
+mean: 4.434690,  std: 0.048046
+epoch 1440
+mean: 4.463495,  std: 0.036978
+epoch 1450
+mean: 4.557005,  std: 0.035884
+epoch 1460
+mean: 4.531250,  std: 0.052477
+epoch 1470
+mean: 4.314195,  std: 0.050535
+epoch 1480
+mean: 4.473768,  std: 0.033030
+epoch 1490
+mean: 4.606257,  std: 0.066368
+epoch 1500
+mean: 4.403198,  std: 0.052879
+epoch 1510
+mean: 4.541382,  std: 0.050466
+epoch 1520
+mean: 4.510533,  std: 0.057327
+epoch 1530
+mean: 4.527604,  std: 0.050709
+epoch 1540
+mean: 4.612960,  std: 0.049523
+epoch 1550
+mean: 4.691717,  std: 0.043276
+epoch 1560
+mean: 4.565691,  std: 0.038426
+epoch 1570
+mean: 4.526527,  std: 0.047262
+epoch 1580
+mean: 4.697418,  std: 0.060777
+epoch 1590
+mean: 4.667801,  std: 0.073493
+epoch 1600
+mean: 4.621346,  std: 0.058926
+epoch 1610
+mean: 4.448622,  std: 0.052214
+epoch 1620
+mean: 4.350217,  std: 0.052213
+epoch 1630
+mean: 4.281153,  std: 0.042031
+epoch 1640
+mean: 4.462916,  std: 0.043736
+epoch 1650
+mean: 4.372002,  std: 0.091284
+epoch 1660
+mean: 4.383276,  std: 0.059071
+epoch 1670
+mean: 4.132801,  std: 0.047793
+epoch 1680
+mean: 4.375408,  std: 0.052541
+epoch 1690
+mean: 4.529047,  std: 0.038729
+epoch 1700
+mean: 4.393139,  std: 0.047043
+epoch 1710
+mean: 4.533139,  std: 0.057043 
+epoch 1720
+mean: 4.347392,  std: 0.070123 
+epoch 1730
+mean: 4.499131,  std: 0.022229 
