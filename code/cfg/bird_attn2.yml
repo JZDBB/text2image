@@ -3,7 +3,7 @@ CONFIG_NAME: 'attn2'
 DATASET_NAME: 'birds'
 DATA_DIR: '../data/birds'
 GPU_ID: 0
-WORKERS: 4
+WORKERS: 0
 
 
 TREE:
@@ -12,9 +12,9 @@ TREE:
 
 TRAIN:
     FLAG: True
-    NET_G: ''  # ../output/birds_attn2_2019_08_29_15_33_20/Model/netG_epoch_820.pth '../models/bird_AttnGAN2.pth' ../output/birds_SIAGAN600/Model/netG_epoch_260.pth
+    NET_G: ''  # ../output/birds_attn2_2019_08_29_15_33_20/Model/netG_epoch_820.pth'../models/bird_AttnGAN2.pth' ../output/birds_SIAGAN600/Model/netG_epoch_260.pth
     B_NET_D: True
-    BATCH_SIZE: 22  # 22
+    BATCH_SIZE: 16  # 22
     MAX_EPOCH: 2000
     SNAPSHOT_INTERVAL: 10
     DISCRIMINATOR_LR: 0.0002
@@ -25,7 +25,7 @@ TRAIN:
         GAMMA1: 4.0  # 1,2,5 good 4 best  10&100bad
         GAMMA2: 5.0
         GAMMA3: 10.0  # 10good 1&100bad
-        LAMBDA: 5.0
+        LAMBDA: 6.7
 
 
 GAN:
