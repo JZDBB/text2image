@@ -248,3 +248,103 @@ epoch 1490
 mean: 4.490825,  std: 0.049560 
 epoch 1500
 mean: 4.445609,  std: 0.063875 
+epoch 1510
+mean: 4.452735,  std: 0.027995 
+epoch 1520
+mean: 4.489841,  std: 0.067347 
+epoch 1530
+mean: 4.508518,  std: 0.070604 
+epoch 1540
+mean: 4.541312,  std: 0.046508 
+epoch 1550
+mean: 4.449430,  std: 0.029840 
+epoch 1560
+mean: 4.571109,  std: 0.048375 
+epoch 1570
+mean: 4.479280,  std: 0.047252 
+epoch 1580
+mean: 4.460412,  std: 0.053852 
+epoch 1590
+mean: 4.581021,  std: 0.055692 
+epoch 1600
+mean: 4.451362,  std: 0.056465 
+epoch 1610
+mean: 4.488942,  std: 0.072547 
+epoch 1620
+mean: 4.418157,  std: 0.052463 
+epoch 1630
+mean: 4.524177,  std: 0.048332 
+epoch 1640
+mean: 4.507663,  std: 0.045701 
+epoch 1650
+mean: 4.370784,  std: 0.066020 
+epoch 1660
+mean: 4.502410,  std: 0.047819 
+epoch 1670
+mean: 4.519923,  std: 0.055177 
+epoch 1680
+mean: 4.346107,  std: 0.049218 
+epoch 1690
+mean: 4.555973,  std: 0.054846 
+epoch 1700
+mean: 4.697238,  std: 0.057932 
+epoch 1710
+mean: 4.481690,  std: 0.038792 
+epoch 1720
+mean: 4.603232,  std: 0.078122 
+epoch 1730
+mean: 4.536150,  std: 0.041528 
+epoch 1740
+mean: 4.366576,  std: 0.059891 
+epoch 1750
+mean: 4.355772,  std: 0.032299 
+epoch 1760
+mean: 4.476855,  std: 0.062236 
+epoch 1770
+mean: 4.507039,  std: 0.022315 
+epoch 1780
+mean: 4.522876,  std: 0.035110 
+epoch 1790
+mean: 4.640623,  std: 0.075499 
+epoch 1800
+mean: 4.521034,  std: 0.063493 
+epoch 1810
+mean: 4.500400,  std: 0.049434 
+epoch 1820
+mean: 4.525417,  std: 0.057054 
+epoch 1830
+mean: 4.523607,  std: 0.039905 
+epoch 1840
+mean: 4.439068,  std: 0.066285 
+epoch 1850
+mean: 4.478427,  std: 0.049387 
+epoch 1860
+mean: 4.514346,  std: 0.034246 
+epoch 1870
+mean: 4.432334,  std: 0.052520 
+epoch 1880
+mean: 4.576496,  std: 0.066033 
+epoch 1890
+mean: 4.383771,  std: 0.059831 
+epoch 1900
+mean: 4.452322,  std: 0.054033 
+epoch 1910
+mean: 4.418851,  std: 0.057412 
+epoch 1920
+mean: 4.619296,  std: 0.040400 
+epoch 1930
+mean: 4.314738,  std: 0.064335 
+epoch 1940
+mean: 4.372086,  std: 0.060670 
+epoch 1950
+mean: 4.404935,  std: 0.038589 
+epoch 1960
+mean: 4.442347,  std: 0.049694 
+epoch 1970
+mean: 4.330213,  std: 0.034959 
+epoch 1980
+mean: 4.431620,  std: 0.049779 
+epoch 1990
+mean: 4.429451,  std: 0.045215 
+epoch 2000
+mean: 4.481663,  std: 0.041048 
