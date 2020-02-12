@@ -30,6 +30,342 @@ epoch 440
 mean: 4.225610,  std: 0.043807 
 epoch 450
 mean: 4.249791,  std: 0.045329 
+epoch 460
+mean: 4.333218,  std: 0.060859 
+epoch 470
+mean: 4.317479,  std: 0.079466 
+epoch 480
+mean: 4.267933,  std: 0.037040 
+epoch 490
+mean: 4.317879,  std: 0.067287 
+epoch 500
+mean: 4.435470,  std: 0.075582 
+epoch 510
+mean: 4.404678,  std: 0.058165 
+epoch 520
+mean: 4.314205,  std: 0.043610 
+epoch 530
+mean: 4.247249,  std: 0.043173 
+epoch 540
+mean: 4.376638,  std: 0.046285 
+epoch 550
+mean: 4.125850,  std: 0.048757 
+epoch 560
+mean: 4.214783,  std: 0.048779 
+epoch 570
+mean: 4.300515,  std: 0.059699 
+epoch 580
+mean: 4.443655,  std: 0.055375 
+epoch 590
+mean: 4.428993,  std: 0.049085 
+epoch 600
+mean: 4.322574,  std: 0.042205 
+epoch 610
+mean: 4.392178,  std: 0.063169 
+epoch 620
+mean: 4.283352,  std: 0.057274 
+epoch 630
+mean: 4.307939,  std: 0.044615 
+epoch 640
+mean: 4.242475,  std: 0.042392 
+epoch 650
+mean: 4.291489,  std: 0.066015 
+epoch 660
+mean: 4.228835,  std: 0.055621 
+epoch 670
+mean: 4.234555,  std: 0.063049 
+epoch 680
+mean: 4.263089,  std: 0.047346 
+epoch 690
+mean: 4.228142,  std: 0.050506 
+epoch 700
+mean: 4.345452,  std: 0.073310 
+epoch 710
+mean: 4.323922,  std: 0.055710 
+epoch 720
+mean: 4.288232,  std: 0.050478 
+epoch 730
+mean: 4.284404,  std: 0.069732 
+epoch 740
+mean: 4.213126,  std: 0.058870 
+epoch 750
+mean: 4.357978,  std: 0.055820 
+epoch 760
+mean: 4.389974,  std: 0.062222 
+epoch 770
+mean: 4.224476,  std: 0.040445 
+epoch 780
+mean: 4.401176,  std: 0.061803 
+epoch 790
+mean: 4.356451,  std: 0.041856 
+epoch 800
+mean: 4.404881,  std: 0.039934 
+epoch 810
+mean: 4.372843,  std: 0.047782 
+epoch 820
+mean: 4.338730,  std: 0.043448 
+epoch 830
+epoch 830
+epoch 840
+epoch 830
+mean: 4.380596,  std: 0.060483 
+epoch 840
+mean: 4.224214,  std: 0.061142 
+epoch 850
+mean: 4.351736,  std: 0.058827 
+epoch 860
+mean: 4.249362,  std: 0.047780 
+epoch 870
+mean: 4.457704,  std: 0.046778 
+epoch 880
+mean: 4.463367,  std: 0.031728 
+epoch 890
+mean: 4.463764,  std: 0.074030 
+epoch 900
+mean: 4.397845,  std: 0.040545 
+epoch 910
+mean: 4.309117,  std: 0.048217 
+epoch 920
+mean: 4.475793,  std: 0.050187 
+epoch 930
+mean: 4.555531,  std: 0.027963 
+epoch 940
+mean: 4.511248,  std: 0.043173 
+epoch 950
+mean: 4.455158,  std: 0.069311 
+epoch 960
+mean: 4.266720,  std: 0.061323 
+epoch 970
+mean: 4.372603,  std: 0.048623 
+epoch 980
+mean: 4.492928,  std: 0.050004 
+epoch 990
+mean: 4.435331,  std: 0.085052 
+epoch 1000
+mean: 4.297774,  std: 0.042512 
+epoch 1010
+mean: 4.379483,  std: 0.064319 
+epoch 1020
+mean: 4.362658,  std: 0.059459 
+epoch 1030
+mean: 4.521354,  std: 0.069761 
+epoch 1040
+mean: 4.259390,  std: 0.059610 
+epoch 1050
+mean: 4.246524,  std: 0.054168 
+epoch 1060
+mean: 4.526618,  std: 0.062039 
+epoch 1070
+mean: 4.464993,  std: 0.045136 
+epoch 1080
+mean: 4.358949,  std: 0.058068 
+epoch 1090
+mean: 4.373678,  std: 0.066882 
+epoch 1100
+mean: 4.390875,  std: 0.039942 
+epoch 1110
+mean: 4.284661,  std: 0.043006 
+epoch 1120
+mean: 4.471590,  std: 0.037453 
+epoch 1130
+mean: 4.551318,  std: 0.061543 
+epoch 1140
+mean: 4.634378,  std: 0.055398 
+epoch 1150
+mean: 4.336268,  std: 0.056556 
+epoch 1160
+mean: 4.437541,  std: 0.064951 
+epoch 1170
+mean: 4.598304,  std: 0.056406 
+epoch 1180
+mean: 4.494042,  std: 0.041776 
+epoch 1190
+mean: 4.293629,  std: 0.064436 
+epoch 1200
+mean: 4.474130,  std: 0.046069 
+epoch 1210
+mean: 4.306855,  std: 0.065719 
+epoch 1220
+mean: 4.436863,  std: 0.043678 
+epoch 1230
+mean: 4.386035,  std: 0.040485 
+epoch 1240
+mean: 4.399093,  std: 0.057834 
+epoch 1250
+mean: 4.502790,  std: 0.059230 
+epoch 1260
+mean: 4.468768,  std: 0.041554 
+epoch 1270
+mean: 4.419653,  std: 0.045384 
+epoch 1280
+mean: 4.597565,  std: 0.043154 
+epoch 1290
+epoch 1300
+epoch 1310
+epoch 1320
+epoch 1330
+epoch 1340
+epoch 1350
+epoch 1360
+epoch 1370
+epoch 1380
+epoch 1390
+epoch 1400
+epoch 1410
+epoch 1420
+epoch 1430
+epoch 1440
+epoch 1450
+epoch 1460
+epoch 1470
+epoch 1480
+epoch 1490
+epoch 1500
+epoch 1510
+epoch 1520
+epoch 1530
+epoch 1540
+epoch 1550
+epoch 1560
+epoch 1570
+epoch 1580
+epoch 1590
+epoch 1600
+epoch 1610
+epoch 1620
+epoch 1630
+epoch 1640
+epoch 1650
+epoch 1660
+epoch 1670
+epoch 1680
+epoch 1690
+epoch 1700
+epoch 1710
+epoch 1720
+epoch 1730
+epoch 1740
+epoch 1750
+epoch 1760
+epoch 1770
+epoch 1780
+epoch 1790
+epoch 1800
+epoch 1710
+epoch 1720
+epoch 1730
+epoch 1740
+epoch 1710
+mean: 4.533139,  std: 0.057043 
+epoch 1720
+mean: 4.347392,  std: 0.070123 
+epoch 1730
+mean: 4.499131,  std: 0.022229 
+epoch 1740
+epoch 1290
+mean: 4.517408,  std: 0.041913 
+epoch 1300
+mean: 4.567444,  std: 0.038639 
+epoch 1310
+mean: 4.667664,  std: 0.064735 
+epoch 1320
+mean: 4.444242,  std: 0.083888 
+epoch 1330
+mean: 4.483214,  std: 0.031508 
+epoch 1340
+mean: 4.426486,  std: 0.055531 
+epoch 1350
+mean: 4.189792,  std: 0.049606 
+epoch 1360
+mean: 4.455389,  std: 0.060790 
+epoch 1370
+epoch 1290
+mean: 4.516959,  std: 0.059504 
+epoch 1300
+mean: 4.567119,  std: 0.041932 
+epoch 1310
+mean: 4.667212,  std: 0.053169 
+epoch 1320
+mean: 4.443675,  std: 0.064903 
+epoch 1330
+mean: 4.481884,  std: 0.045848 
+epoch 1340
+mean: 4.426385,  std: 0.031475 
+epoch 1350
+mean: 4.189114,  std: 0.066423 
+epoch 1360
+mean: 4.455417,  std: 0.056557 
+epoch 1370
+mean: 4.444707,  std: 0.039600 
+epoch 1380
+mean: 4.440729,  std: 0.035384 
+epoch 1390
+mean: 4.411932,  std: 0.048141 
+epoch 1400
+mean: 4.436248,  std: 0.045408 
+epoch 1410
+mean: 4.593495,  std: 0.042261 
+epoch 1420
+mean: 4.521352,  std: 0.059001 
+epoch 1430
+mean: 4.434690,  std: 0.048046 
+epoch 1440
+mean: 4.463495,  std: 0.036978 
+epoch 1450
+mean: 4.557005,  std: 0.035884 
+epoch 1460
+mean: 4.531250,  std: 0.052477 
+epoch 1470
+mean: 4.314195,  std: 0.050535 
+epoch 1480
+mean: 4.473768,  std: 0.033030 
+epoch 1490
+mean: 4.606257,  std: 0.066368 
+epoch 1500
+mean: 4.403198,  std: 0.052879 
+epoch 1510
+mean: 4.541382,  std: 0.050466 
+epoch 1520
+mean: 4.510533,  std: 0.057327 
+epoch 1530
+mean: 4.527604,  std: 0.050709 
+epoch 1540
+mean: 4.612960,  std: 0.049523 
+epoch 1550
+mean: 4.691717,  std: 0.043276 
+epoch 1560
+mean: 4.565691,  std: 0.038426 
+epoch 1570
+mean: 4.526527,  std: 0.047262 
+epoch 1580
+mean: 4.697418,  std: 0.060777 
+epoch 1590
+mean: 4.667801,  std: 0.073493 
+epoch 1600
+mean: 4.621346,  std: 0.058926 
+epoch 1610
+mean: 4.448622,  std: 0.052214 
+epoch 1620
+mean: 4.350217,  std: 0.052213 
+epoch 1630
+mean: 4.281153,  std: 0.042031 
+epoch 1640
+mean: 4.462916,  std: 0.043736 
+epoch 1650
+mean: 4.372002,  std: 0.091284 
+epoch 1660
+mean: 4.383276,  std: 0.059071 
+epoch 1670
+mean: 4.132801,  std: 0.047793 
+epoch 1680
+mean: 4.375408,  std: 0.052541 
+epoch 1690
+mean: 4.529047,  std: 0.038729 
+epoch 1700
+epoch 
+epoch 
+mean: 4.393889,  std: 0.051580 
+epoch 260
 epoch 260
 mean: 4.118027,  std: 0.053247 
 epoch 270
@@ -210,3 +546,173 @@ epoch 1140
 mean: 4.565694,  std: 0.051421 
 epoch 1150
 mean: 4.370360,  std: 0.056308 
+epoch 1160
+mean: 4.408991,  std: 0.055035 
+epoch 1170
+mean: 4.333073,  std: 0.045770 
+epoch 1180
+mean: 4.504453,  std: 0.039097 
+epoch 1190
+mean: 4.405113,  std: 0.053541 
+epoch 1200
+mean: 4.482398,  std: 0.073539 
+epoch 1210
+mean: 4.570107,  std: 0.049798 
+epoch 1220
+mean: 4.285329,  std: 0.027104 
+epoch 1230
+mean: 4.553776,  std: 0.040919 
+epoch 1240
+mean: 4.489507,  std: 0.053454 
+epoch 1250
+mean: 4.479620,  std: 0.038493 
+epoch 1260
+mean: 4.368477,  std: 0.074143 
+epoch 1270
+mean: 4.487363,  std: 0.021558 
+epoch 1280
+mean: 4.335701,  std: 0.061075 
+epoch 1290
+mean: 4.418544,  std: 0.064614 
+epoch 1300
+mean: 4.456285,  std: 0.058001 
+epoch 1310
+mean: 4.565371,  std: 0.064865 
+epoch 1320
+mean: 4.474790,  std: 0.080659 
+epoch 1330
+mean: 4.477569,  std: 0.047092 
+epoch 1340
+mean: 4.432049,  std: 0.074026 
+epoch 1350
+mean: 4.432601,  std: 0.063682 
+epoch 1360
+mean: 4.451373,  std: 0.056408 
+epoch 1370
+mean: 4.484450,  std: 0.080853 
+epoch 1380
+mean: 4.492594,  std: 0.058066 
+epoch 1390
+mean: 4.568002,  std: 0.071582 
+epoch 1400
+mean: 4.463233,  std: 0.070784 
+epoch 1410
+mean: 4.459710,  std: 0.049093 
+epoch 1420
+mean: 4.459742,  std: 0.051414 
+epoch 1430
+mean: 4.393533,  std: 0.066324 
+epoch 1440
+mean: 4.388358,  std: 0.050813 
+epoch 1450
+mean: 4.434000,  std: 0.041377 
+epoch 1460
+mean: 4.426871,  std: 0.054732 
+epoch 1470
+mean: 4.536674,  std: 0.049551 
+epoch 1480
+mean: 4.605711,  std: 0.062813 
+epoch 1490
+mean: 4.490825,  std: 0.049560 
+epoch 1500
+mean: 4.445609,  std: 0.063875 
+epoch 1510
+mean: 4.452735,  std: 0.027995 
+epoch 1520
+mean: 4.489841,  std: 0.067347 
+epoch 1530
+mean: 4.508518,  std: 0.070604 
+epoch 1540
+mean: 4.541312,  std: 0.046508 
+epoch 1550
+mean: 4.449430,  std: 0.029840 
+epoch 1560
+mean: 4.571109,  std: 0.048375 
+epoch 1570
+mean: 4.479280,  std: 0.047252 
+epoch 1580
+mean: 4.460412,  std: 0.053852 
+epoch 1590
+mean: 4.581021,  std: 0.055692 
+epoch 1600
+mean: 4.451362,  std: 0.056465 
+epoch 1610
+mean: 4.488942,  std: 0.072547 
+epoch 1620
+mean: 4.418157,  std: 0.052463 
+epoch 1630
+mean: 4.524177,  std: 0.048332 
+epoch 1640
+mean: 4.507663,  std: 0.045701 
+epoch 1650
+mean: 4.370784,  std: 0.066020 
+epoch 1660
+mean: 4.502410,  std: 0.047819 
+epoch 1670
+mean: 4.519923,  std: 0.055177 
+epoch 1680
+mean: 4.346107,  std: 0.049218 
+epoch 1690
+mean: 4.555973,  std: 0.054846 
+epoch 1700
+mean: 4.697238,  std: 0.057932 
+epoch 1710
+mean: 4.481690,  std: 0.038792 
+epoch 1720
+mean: 4.603232,  std: 0.078122 
+epoch 1730
+mean: 4.536150,  std: 0.041528 
+epoch 1740
+mean: 4.366576,  std: 0.059891 
+epoch 1750
+mean: 4.355772,  std: 0.032299 
+epoch 1760
+mean: 4.476855,  std: 0.062236 
+epoch 1770
+mean: 4.507039,  std: 0.022315 
+epoch 1780
+mean: 4.522876,  std: 0.035110 
+epoch 1790
+mean: 4.640623,  std: 0.075499 
+epoch 1800
+mean: 4.521034,  std: 0.063493 
+epoch 1810
+mean: 4.500400,  std: 0.049434 
+epoch 1820
+mean: 4.525417,  std: 0.057054 
+epoch 1830
+mean: 4.523607,  std: 0.039905 
+epoch 1840
+mean: 4.439068,  std: 0.066285 
+epoch 1850
+mean: 4.478427,  std: 0.049387 
+epoch 1860
+mean: 4.514346,  std: 0.034246 
+epoch 1870
+mean: 4.432334,  std: 0.052520 
+epoch 1880
+mean: 4.576496,  std: 0.066033 
+epoch 1890
+mean: 4.383771,  std: 0.059831 
+epoch 1900
+mean: 4.452322,  std: 0.054033 
+epoch 1910
+mean: 4.418851,  std: 0.057412 
+epoch 1920
+mean: 4.619296,  std: 0.040400 
+epoch 1930
+mean: 4.314738,  std: 0.064335 
+epoch 1940
+mean: 4.372086,  std: 0.060670 
+epoch 1950
+mean: 4.404935,  std: 0.038589 
+epoch 1960
+mean: 4.442347,  std: 0.049694 
+epoch 1970
+mean: 4.330213,  std: 0.034959 
+epoch 1980
+mean: 4.431620,  std: 0.049779 
+epoch 1990
+mean: 4.429451,  std: 0.045215 
+epoch 2000
+mean: 4.481663,  std: 0.041048 

@@ -6,3 +6,4 @@ code/miscc/*.pyc
 .idea/
 code/utils/*.pyc
 eval/pytorch-fid/
+dcode/

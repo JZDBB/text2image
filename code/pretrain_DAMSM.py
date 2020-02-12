@@ -8,7 +8,7 @@ from miscc.config import cfg, cfg_from_file
 from datasets import TextDataset
 from datasets import prepare_data
 
-from mycode.model import RNN_ENCODER, CNN_ENCODER
+from model import RNN_ENCODER, CNN_ENCODER
 
 import os
 import sys
@@ -22,6 +22,7 @@ import numpy as np
 from PIL import Image
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
@@ -99,16 +100,16 @@ def train(dataloader, cnn_model, rnn_model, batch_size,
         if step % UPDATE_INTERVAL == 0:
             count = epoch * len(dataloader) + step
 
-            s_cur_loss0 = s_total_loss0.item() / UPDATE_INTERVAL
-            s_cur_loss1 = s_total_loss1.item() / UPDATE_INTERVAL
+            s_cur_loss0 = s_total_loss0[0] / UPDATE_INTERVAL
+            s_cur_loss1 = s_total_loss1[0] / UPDATE_INTERVAL
 
-            w_cur_loss0 = w_total_loss0.item() / UPDATE_INTERVAL
-            w_cur_loss1 = w_total_loss1.item() / UPDATE_INTERVAL
+            w_cur_loss0 = w_total_loss0[0] / UPDATE_INTERVAL
+            w_cur_loss1 = w_total_loss1[0] / UPDATE_INTERVAL
 
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | ms/batch {:5.2f} | '
-                  's_loss {:5.4f} {:5.4f} | '
-                  'w_loss {:5.4f} {:5.4f}'
+                  's_loss {:5.2f} {:5.2f} | '
+                  'w_loss {:5.2f} {:5.2f}'
                   .format(epoch, step, len(dataloader),
                           elapsed * 1000. / UPDATE_INTERVAL,
                           s_cur_loss0, s_cur_loss1,
@@ -156,8 +157,8 @@ def evaluate(dataloader, cnn_model, rnn_model, batch_size):
         if step == 50:
             break
 
-    s_cur_loss = s_total_loss.item() / step
-    w_cur_loss = w_total_loss.item() / step
+    s_cur_loss = s_total_loss[0] / step
+    w_cur_loss = w_total_loss[0] / step
 
     return s_cur_loss, w_cur_loss
 

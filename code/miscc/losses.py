@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from vgg import Vgg16,Vgg16_ori
+# from vgg import Vgg16,Vgg16_ori
 import numpy as np
 import math
 from miscc.config import cfg

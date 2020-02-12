@@ -1,4 +1,4 @@
-CONFIG_NAME: 'attn2'
+CONFIG_NAME: 'DMGAN'
 
 DATASET_NAME: 'birds'
 DATA_DIR: '../data/birds'
@@ -9,14 +9,13 @@ WORKERS: 4
 TREE:
     BRANCH_NUM: 3
 
-
 TRAIN:
     FLAG: True
     NET_G: ''  # '../models/bird_AttnGAN2.pth'
     B_NET_D: True
-    BATCH_SIZE: 16  # 22
-    MAX_EPOCH: 600
-    SNAPSHOT_INTERVAL: 50
+    BATCH_SIZE: 12  # 22
+    MAX_EPOCH: 2000
+    SNAPSHOT_INTERVAL: 10
     DISCRIMINATOR_LR: 0.0002
     GENERATOR_LR: 0.0002
     #
@@ -29,8 +28,8 @@ TRAIN:
 
 
 GAN:
-    DF_DIM: 64
-    GF_DIM: 32
+    DF_DIM: 32
+    GF_DIM: 64
     Z_DIM: 100
     R_NUM: 2
 

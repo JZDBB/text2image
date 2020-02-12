@@ -1,4 +1,4 @@
-CONFIG_NAME: 'attn2'
+CONFIG_NAME: 'DMGAN'
 
 DATASET_NAME: 'birds'
 DATA_DIR: '../data/birds'
@@ -12,15 +12,15 @@ TREE:
 
 TRAIN:
     FLAG: False
-    NET_G: ''# ../models/netG_epoch_980.pth '../bird_results/birds_FTGAN1000/netG_epoch_1000.pth' #../models/bird_AttnGAN2.pth
+    NET_G: '../models/bird_DMGAN.pth'
     B_NET_D: False
-    BATCH_SIZE: 7
-    NET_E: '../DAMSMencoders/bird/text_encoder200.pth'# '../bird_results/birds_FTGAN1000/netE1000.pth'
+    BATCH_SIZE: 10
+    NET_E: '../DAMSMencoders/bird/text_encoder200.pth'
 
 
 GAN:
-    DF_DIM: 64
-    GF_DIM: 32
+    DF_DIM: 32
+    GF_DIM: 64
     Z_DIM: 100
     R_NUM: 2
 
