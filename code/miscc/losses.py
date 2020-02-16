@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-
 import numpy as np
 from miscc.config import cfg
 from GlobalAttention import func_attention

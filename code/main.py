@@ -26,7 +26,6 @@ def parse_args():
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
                         default='cfg/bird_DMGAN.yml', type=str)
-    parser.add_argument('--model', dest="model", default=None, type=str)
     parser.add_argument('--gpu', dest='gpu_id', type=int, default=-1)
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--NET_G', type=str, default='')
@@ -143,14 +142,13 @@ if __name__ == "__main__":
 
     # Define models and go to train/evaluate
     algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, dataset, args)
-
     start_t = time.time()
     if cfg.TRAIN.FLAG:
         algo.train()
     else:
         '''generate images from pre-extracted embeddings'''
         if cfg.B_VALIDATION:
-            algo.sampling(split_dir)  # generate images for the whole valid dataset
+            algo.sampling_n(split_dir)  # generate images for the whole valid dataset
         else:
             gen_example(dataset.wordtoix, algo)  # generate images for customized captions
     end_t = time.time()

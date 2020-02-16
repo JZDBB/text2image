@@ -9,9 +9,10 @@ import torch.nn as nn
 from PIL import Image, ImageDraw, ImageFont
 from copy import deepcopy
 import skimage.transform
-import math
 
 from miscc.config import cfg
+
+import math
 
 
 # For visualization ################################################
@@ -289,10 +290,10 @@ def weights_init(m):
     # xavier_uniform_(
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        #print(m.state_dict().keys())
-        if m.state_dict().keys()[0] == 'weight':
+        # print(list(m.state_dict().keys())[0])
+        if list(m.state_dict().keys())[0] == 'weight':
             nn.init.orthogonal_(m.weight.data, 1.0)
-        elif m.state_dict().keys()[3] == 'weight_bar':
+        elif list(m.state_dict().keys())[3] == 'weight_bar':
             nn.init.orthogonal_(m.weight_bar.data, 1.0)
         #nn.init.orthogonal(m.weight.data, 1.0)
     elif classname.find('BatchNorm') != -1:
@@ -323,12 +324,14 @@ def mkdir_p(path):
         else:
             raise
 
+
 ## debug
 def image_comp(image, img_size, batch_size, dim):
 
     col = int(math.sqrt(batch_size))
-    row = math.ceil(batch_size // col)
+    row = math.ceil(batch_size / col)
     result = np.ndarray(shape=(dim, img_size * col, img_size * row), dtype=np.uint8)
+    print(batch_size, col, row)
     for i in range(batch_size):
         im = image[i].cpu().data.numpy()
         im = (im + 1.) / 2.
