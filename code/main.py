@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from miscc.config import cfg, cfg_from_file
 from datasets import TextDataset
-from trainer_FTGAN import condGANTrainer as trainer
+from trainer import condGANTrainer as trainer
 
 import os
 import sys
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     else:
         '''generate images from pre-extracted embeddings'''
         if cfg.B_VALIDATION:
-            algo.sampling(split_dir)  # generate images for the whole valid dataset
+            algo.sampling_n(split_dir)  # generate images for the whole valid dataset
         else:
             gen_example(dataset.wordtoix, algo)  # generate images for customized captions
     end_t = time.time()
