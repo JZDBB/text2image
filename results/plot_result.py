@@ -13,8 +13,8 @@ FID_id = [int(i.split(" ")[1]) for i in id]
 FID_value = [float(i.split(":")[1]) for i in value]
 FID_base = [23.98 for i in id]
 
-total_IS = [(IS_value[i]-4.5)/4.36 for i in range(len(FID_id))]
-total_FID = [ - (FID_value[i] - 21)/23.98 for i in range(len(FID_id))]
+total_IS = [(IS_value[i]-4.6)/4.36 for i in range(len(FID_id))]
+total_FID = [ - (FID_value[i] - 20)/23.98 for i in range(len(FID_id))]
 total = [(IS_value[i]-4.36)/4.36 - (FID_value[i] - 23.98)/23.98 for i in range(len(FID_id))]
 base = [0 for i in id]
 
@@ -31,9 +31,9 @@ base = [0 for i in id]
 # plt.plot(FID_id, total, "o-g", label='FID_test')
 # plt.plot(FID_id, base, "-r", label='FID_base')
 # plt.savefig("result-total.jpg")
-with open("epoch.txt", "a+") as f:
+with open("result.txt", "a+") as f:
     for i in range(len(total_IS)):
         if total_IS[i] > 0:
             if total_FID[i] > 0:
-                # f.write("epoch {} ---> IS mean:{}, std:{} / FID: {}\n".format(FID_id[i], IS_value[i], IS_error[i], FID_value[i]))
-                f.write("{}\n".format(FID_id[i]))
+                f.write("epoch {} ---> IS mean:{}, std:{} / FID: {}\n".format(FID_id[i], IS_value[i], IS_error[i], FID_value[i]))
+                # f.write("{}\n".format(FID_id[i]))
