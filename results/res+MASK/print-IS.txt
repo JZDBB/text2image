@@ -107,4 +107,46 @@ mean: 4.741948,  std: 0.062860
 epoch 780
 mean: 4.669105,  std: 0.033217 
 epoch 790
-mean: 4.731301,  std: 0.063110
+mean: 4.731301,  std: 0.063110 
+epoch 800
+mean: 4.703353,  std: 0.034963 
+epoch 810
+mean: 4.706774,  std: 0.064719 
+epoch 820
+mean: 4.759368,  std: 0.046691 
+epoch 830
+mean: 4.705701,  std: 0.058257 
+epoch 840
+mean: 4.620373,  std: 0.060414 
+epoch 850
+mean: 4.681088,  std: 0.057503 
+epoch 860
+mean: 4.782710,  std: 0.062671 
+epoch 870
+mean: 4.710438,  std: 0.058235 
+epoch 880
+mean: 4.701114,  std: 0.041762 
+epoch 890
+mean: 4.660558,  std: 0.054495 
+epoch 900
+mean: 4.743243,  std: 0.043550 
+epoch 910
+mean: 4.647002,  std: 0.082161 
+epoch 920
+mean: 4.655883,  std: 0.065445 
+epoch 930
+mean: 4.667000,  std: 0.068917 
+epoch 940
+mean: 4.776186,  std: 0.069435 
+epoch 950
+mean: 4.667712,  std: 0.061995 
+epoch 960
+mean: 4.731060,  std: 0.050171 
+epoch 970
+mean: 4.698050,  std: 0.035055 
+epoch 980
+mean: 4.769633,  std: 0.056102 
+epoch 990
+mean: 4.831414,  std: 0.052855 
+epoch 1000
+mean: 4.702992,  std: 0.079523 

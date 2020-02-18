@@ -511,7 +511,7 @@ class INIT_STAGE_G(nn.Module):
         # state size ngf/3 x 8 x 8
         out_code = self.upsample1(out_code)
         # state size ngf/4 x 16 x 16
-        out_code = self.upsample2(out_code)
+        out_code = selfupsample2(out_code)
         # state size ngf/8 x 32 x 32
         out_code32 = self.upsample3(out_code)
         # state size ngf/16 x 64 x 64
