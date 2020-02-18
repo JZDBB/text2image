@@ -261,7 +261,7 @@ def generator_loss(netsD, mask_D, image_encoder, fake_imgs, masks, real_labels,
     else:
         g_loss = cond_errG
 
-    errG_total += g_loss
+    errG_total += cfg.TRAIN.SMOOTH.MASK * g_loss
     # err_img = errG_total.data[0]
     logs += 'g_mask_loss: %.2f ' % (g_loss.item())
     errG_list.append(g_loss.item())

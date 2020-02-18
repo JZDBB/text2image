@@ -347,7 +347,7 @@ class condGANTrainer(object):
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
 
                 mask_D.zero_grad()
-                err_mask = mask_loss(mask_D, masks[0], mask_imgs,
+                err_mask = cfg.train.SMMOTH.MASK * mask_loss(mask_D, masks[0], mask_imgs,
                                               sent_emb, real_labels, fake_labels)
                 err_mask.backward()
                 self.optimizerM.step()
