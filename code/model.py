@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
+from miscc.carafe import CARAFE
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 # from mca import MCA_ED as MCA
 # from mca import Cfgs as C
@@ -39,7 +40,9 @@ def conv3x3(in_planes, out_planes):
 # Upsale the spatial size by a factor of 2
 def upBlock(in_planes, out_planes):
     block = nn.Sequential(
-        nn.Upsample(scale_factor=2, mode='nearest'),
+        # nn.Upsample(scale_factor=2, mode='nearest'),
+        conv3x3(in_planes, in_planes*4),
+        nn.PixelShuffle(upscale_factor=2),
         conv3x3(in_planes, out_planes * 2),
         nn.BatchNorm2d(out_planes * 2),
         GLU())
@@ -359,53 +362,6 @@ class Upblock64(nn.Module):
         return x
 
 
-class Memory(nn.Module):
-    def __init__(self):
-        super(Memory, self).__init__()
-        self.sm = nn.Softmax()
-        self.mask = None
-
-    def applyMask(self, mask):
-        self.mask = mask  # batch x sourceL
-
-    def forward(self, input, context_key, content_value):#
-        """
-            input: batch x idf x ih x iw (queryL=ihxiw)
-            context: batch x idf x sourceL
-        """
-        ih, iw = input.size(2), input.size(3)
-        queryL = ih * iw
-        batch_size, sourceL = context_key.size(0), context_key.size(2)
-
-        # --> batch x queryL x idf
-        target = input.view(batch_size, -1, queryL)
-        targetT = torch.transpose(target, 1, 2).contiguous()
-        sourceT = context_key
-
-        # Get weight
-        # (batch x queryL x idf)(batch x idf x sourceL)-->batch x queryL x sourceL
-        weight = torch.bmm(targetT, sourceT)
-
-        # --> batch*queryL x sourceL
-        weight = weight.view(batch_size * queryL, sourceL)
-        if self.mask is not None:
-            # batch_size x sourceL --> batch_size*queryL x sourceL
-            mask = self.mask.repeat(queryL, 1)
-            weight.data.masked_fill_(mask.data, -float('inf'))
-        weight = torch.nn.functional.softmax(weight, dim=1)
-
-        # --> batch x queryL x sourceL
-        weight = weight.view(batch_size, queryL, sourceL)
-        # --> batch x sourceL x queryL
-        weight = torch.transpose(weight, 1, 2).contiguous()
-
-        # (batch x idf x sourceL)(batch x sourceL x queryL) --> batch x idf x queryL
-        weightedContext = torch.bmm(content_value, weight)  #
-        weightedContext = weightedContext.view(batch_size, -1, ih, iw)
-        weight = weight.view(batch_size, -1, ih, iw)
-
-        return weightedContext, weight
-
 class INIT_G_3MODE(nn.Module):
     def __init__(self, ngf, ncf):
         super(INIT_G_3MODE, self).__init__()
@@ -511,7 +467,7 @@ class INIT_STAGE_G(nn.Module):
         # state size ngf/3 x 8 x 8
         out_code = self.upsample1(out_code)
         # state size ngf/4 x 16 x 16
-        out_code = selfupsample2(out_code)
+        out_code = self.upsample2(out_code)
         # state size ngf/8 x 32 x 32
         out_code32 = self.upsample3(out_code)
         # state size ngf/16 x 64 x 64
@@ -521,13 +477,12 @@ class INIT_STAGE_G(nn.Module):
 
 
 class NEXT_STAGE_G(nn.Module):
-    def __init__(self, ngf, nef, ncf, size):
+    def __init__(self, ngf, nef, ncf):
         super(NEXT_STAGE_G, self).__init__()
         self.gf_dim = ngf
         self.ef_dim = nef
         self.cf_dim = ncf
         self.num_residual = cfg.GAN.R_NUM
-        self.size = size
         self.define_module()
 
     def _make_layer(self, block, channel_num):
@@ -538,66 +493,25 @@ class NEXT_STAGE_G(nn.Module):
 
     def define_module(self):
         ngf = self.gf_dim
-        self.avg = nn.AvgPool2d(kernel_size=self.size)
-        self.A = nn.Linear(self.ef_dim, 1, bias=False)
-        self.B = nn.Linear(self.gf_dim, 1, bias=False)
-        self.sigmoid = nn.Sigmoid()
-        self.M_r = nn.Sequential(
-            nn.Conv1d(ngf, ngf * 2, kernel_size=1, stride=1, padding=0),
-            nn.ReLU()
-        )
-        self.M_w = nn.Sequential(
-            nn.Conv1d(self.ef_dim, ngf * 2, kernel_size=1, stride=1, padding=0),
-            nn.ReLU()
-        )
-        self.key = nn.Sequential(
-            nn.Conv1d(ngf*2, ngf, kernel_size=1, stride=1, padding=0),
-            nn.ReLU()
-        )
-        self.value = nn.Sequential(
-            nn.Conv1d(ngf*2, ngf, kernel_size=1, stride=1, padding=0),
-            nn.ReLU()
-        )
-        self.memory_operation = Memory()
-        self.response_gate = nn.Sequential(
-            nn.Conv2d(self.gf_dim * 2, 1, kernel_size=1, stride=1, padding=0),
-            nn.Sigmoid()
-        )
+        self.att = ATT_NET(ngf, self.ef_dim)
         self.residual = self._make_layer(ResBlock, ngf * 2)
         self.upsample = upBlock(ngf * 2, ngf)
 
-    def forward(self, h_code, c_code, word_embs, mask, cap_lens):
+    def forward(self, h_code, c_code, word_embs, mask):
         """
-            h_code(image features):  batch x idf x ih x iw (queryL=ihxiw)
-            word_embs(word features): batch x cdf x sourceL (sourceL=seq_len)
-            c_code: batch x idf x queryL
+            h_code1(query):  batch x idf x ih x iw (queryL=ihxiw)
+            word_embs(context): batch x cdf x sourceL (sourceL=seq_len)
+            c_code1: batch x idf x queryL
             att1: batch x sourceL x queryL
         """
-        # Memory Writing
-        word_embs_T = torch.transpose(word_embs, 1, 2).contiguous()
-        h_code_avg = self.avg(h_code).detach()
-        h_code_avg = h_code_avg.squeeze(3)
-        h_code_avg_T = torch.transpose(h_code_avg, 1, 2).contiguous()
-        gate1 = torch.transpose(self.A(word_embs_T), 1, 2).contiguous()
-        gate2 = self.B(h_code_avg_T).repeat(1, 1, word_embs.size(2))
-        writing_gate = torch.sigmoid(gate1 + gate2)
-        h_code_avg = h_code_avg.repeat(1, 1, word_embs.size(2))
-        memory = self.M_w(word_embs) * writing_gate + self.M_r(h_code_avg) * (1 - writing_gate)
+        self.att.applyMask(mask)
+        c_code, att = self.att(h_code, word_embs)
+        h_c_code = torch.cat((h_code, c_code), 1)
+        out_code = self.residual(h_c_code)
 
-        # Key Addressing and Value Reading
-        key = self.key(memory)
-        value = self.value(memory)
-        self.memory_operation.applyMask(mask)
-        memory_out, att = self.memory_operation(h_code, key, value)
-
-        # Key Response
-        response_gate = self.response_gate(torch.cat((h_code, memory_out), 1))
-        h_code_new = h_code * (1 - response_gate) + response_gate * memory_out
-        h_code_new = torch.cat((h_code_new, h_code_new), 1)
-
-        out_code = self.residual(h_code_new)
         # state size ngf/2 x 2in_size x 2in_size
         out_code = self.upsample(out_code)
+
         return out_code, att
 
 
@@ -607,10 +521,14 @@ class GET_IMAGE_G(nn.Module):
         self.gf_dim = ngf
         self.img = nn.Sequential(
             conv3x3(ngf, 3),
-            nn.Tanh()
+            # nn.Tanh()
         )
+        self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
 
-    def forward(self, h_code):
+    def forward(self, h_code, code=False):
+        if code:
+            res = self.upsample(code)
+            h_code = h_code + res
         out_img = self.img(h_code)
         return out_img
 
@@ -621,16 +539,16 @@ class G_NET(nn.Module):
         nef = cfg.TEXT.EMBEDDING_DIM
         ncf = cfg.GAN.CONDITION_DIM
         self.ca_net = CA_NET()
-
+        self.tanh = nn.Tanh()
         if cfg.TREE.BRANCH_NUM > 0:
             self.h_net1 = INIT_G_3MODE(ngf * 16, ncf)
             self.img_net1 = GET_G_3IMAGE(ngf)
         # gf x 64 x 64
         if cfg.TREE.BRANCH_NUM > 1:
-            self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf, 64)
+            self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf)
             self.img_net2 = GET_IMAGE_G(ngf)
         if cfg.TREE.BRANCH_NUM > 2:
-            self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf, 128)
+            self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf)
             self.img_net3 = GET_IMAGE_G(ngf)
 
     def forward(self, z_code, sent_emb, word_embs, mask, cap_lens):
@@ -651,14 +569,14 @@ class G_NET(nn.Module):
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = \
-                self.h_net2(h_code1, c_code, word_embs, mask, cap_lens)
+                self.h_net2(h_code1, c_code, word_embs, mask)
             fake_img2 = self.img_net2(h_code2)
             fake_imgs.append(fake_img2)
             if att1 is not None:
                 att_maps.append(att1)
         if cfg.TREE.BRANCH_NUM > 2:
             h_code3, att2 = \
-                self.h_net3(h_code2, c_code, word_embs, mask, cap_lens)
+                self.h_net3(h_code2, c_code, word_embs, mask)
             fake_img3 = self.img_net3(h_code3)
             fake_imgs.append(fake_img3)
             if att2 is not None:
@@ -679,9 +597,9 @@ class G_DCGAN(nn.Module):
             self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
         # gf x 64 x 64
         if cfg.TREE.BRANCH_NUM > 1:
-            self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf, 64)
+            self.h_net2 = NEXT_STAGE_G(ngf, nef, ncf)
         if cfg.TREE.BRANCH_NUM > 2:
-            self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf, 128)
+            self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf)
         self.img_net = GET_IMAGE_G(ngf)
 
     def forward(self, z_code, sent_emb, word_embs, mask):

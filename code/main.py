@@ -16,6 +16,7 @@ import numpy as np
 
 import torch
 import torchvision.transforms as transforms
+import torch.distributed
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)
@@ -91,6 +92,7 @@ if __name__ == "__main__":
 
     if args.gpu_id != -1:
         cfg.GPU_ID = args.gpu_id
+        torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
     else:
         cfg.CUDA = False
 
@@ -141,7 +143,8 @@ if __name__ == "__main__":
         drop_last=True, shuffle=bshuffle, num_workers=int(cfg.WORKERS))
 
     # Define models and go to train/evaluate
-    algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, dataset, args)
+    algo = trainer(output_dir, dataloader, dataset.n_words, dataset.ixtoword, dataset)
+
     start_t = time.time()
     if cfg.TRAIN.FLAG:
         algo.train()

@@ -275,8 +275,7 @@ class condGANTrainer(object):
         self.writer = SummaryWriter(self.log_dir)
         text_encoder, image_encoder, netG, netsD, mask_D, start_epoch = self.build_models()
 
-        if cfg.TRAIN.NET_G != '':
-            netG, netsD, mask_D, start_epoch = self.load_model(netG, netsD, mask_D)
+        
         if cfg.CUDA:
             text_encoder = text_encoder.cuda()
             image_encoder = image_encoder.cuda()
@@ -285,6 +284,8 @@ class condGANTrainer(object):
             for i in range(len(netsD)):
                 netsD[i].cuda()
         self.optimizerG, self.optimizersD, self.optimizerM = self.define_optimizers(netG, netsD, mask_D)
+        if cfg.TRAIN.NET_G != '':
+            netG, netsD, mask_D, start_epoch = self.load_model(netG, netsD, mask_D)
         avg_param_G = copy_G_params(netG)
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
@@ -347,7 +348,7 @@ class condGANTrainer(object):
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
 
                 mask_D.zero_grad()
-                err_mask = cfg.train.SMMOTH.MASK * mask_loss(mask_D, masks[0], mask_imgs,
+                err_mask = mask_loss(mask_D, masks[0], mask_imgs,
                                               sent_emb, real_labels, fake_labels)
                 err_mask.backward()
                 self.optimizerM.step()
