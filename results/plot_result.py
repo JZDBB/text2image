@@ -13,8 +13,8 @@ FID_id = [int(i.split(" ")[1]) for i in id]
 FID_value = [float(i.split(":")[1]) for i in value]
 FID_base = [23.98 for i in id]
 
-total_IS = [(IS_value[i]-4.7)/4.36 for i in range(len(FID_id))]
-total_FID = [ - (FID_value[i] - 16)/23.98 for i in range(len(FID_id))]
+total_IS = [(IS_value[i]-4.5)/4.36 for i in range(len(FID_id))]
+total_FID = [ - (FID_value[i] - 22)/23.98 for i in range(len(FID_id))]
 total = [(IS_value[i]-4.36)/4.36 - (FID_value[i] - 23.98)/23.98 for i in range(len(FID_id))]
 base = [0 for i in id]
 
